@@ -1,0 +1,1731 @@
+{
+  "info": {
+    "_postman_id": "9394b7ba-198e-492a-b74d-81b8e6d2df12",
+    "name": "E-Invoice Collection",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "_exporter_id": "9775643"
+  },
+  "item": [
+    {
+      "name": "TaxPayer Authentication",
+      "item": [
+        {
+          "name": "TaxpayerLogin",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}",
+                "type": "text"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/json",
+                "type": "text",
+                "disabled": true
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"email\": \"{{TAXPAYER_EMAIL}}\",\n    \"password\": \"{{TAXPAYER_PASSWORD}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/utilities/authenticate",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "utilities",
+                "authenticate"
+              ],
+              "query": [
+                {
+                  "key": "",
+                  "value": "",
+                  "disabled": true
+                },
+                {
+                  "key": "",
+                  "value": "",
+                  "disabled": true
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Entity",
+      "item": [
+        {
+          "name": "GetEntity XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/entity/cd921b8f-3d8a-48ca-841f-9445c6e9c5ff",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entity",
+                "cd921b8f-3d8a-48ca-841f-9445c6e9c5ff"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SearchEntity XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/entity?size=20&page=1&sort_by=created_at&sort_direction_desc=true&reference=",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entity"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "how many data per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "what page in the pagination? page 1, 2, 3 or X depending on the totalPages"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "created_at",
+                  "description": "sort by the query param. i.e sort by 'created_at'"
+                },
+                {
+                  "key": "sort_direction_desc",
+                  "value": "true",
+                  "description": "sort the 'sort_by' "
+                },
+                {
+                  "key": "reference",
+                  "value": "",
+                  "description": "searching by a reference"
+                }
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetEntity",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/entity/{{TEST_ENTITY_ID}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entity",
+                "{{TEST_ENTITY_ID}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SearchEntity",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/entity?size=20&page=1&sort_by=created_at&sort_direction_desc=true&reference=",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "entity"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "20",
+                  "description": "how many data per page"
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "what page in the pagination? page 1, 2, 3 or X depending on the totalPages"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "created_at",
+                  "description": "sort by the query param. i.e sort by 'created_at'"
+                },
+                {
+                  "key": "sort_direction_desc",
+                  "value": "true",
+                  "description": "sort the 'sort_by' "
+                },
+                {
+                  "key": "reference",
+                  "value": "",
+                  "description": "searching by a reference"
+                }
+              ]
+            }
+          },
+          "response": []
+        }
+      ],
+      "description": "The API suite includes endpoints designed for managing entities within the E-invoice system."
+    },
+    {
+      "name": "Resources",
+      "item": [
+        {
+          "name": "GetCountries",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/countries",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "countries"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetCurrencies",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/currencies",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "currencies"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetTaxCategories",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/tax-categories",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "tax-categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetPaymentmeans",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/payment-means",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "payment-means"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetInvoiceTypes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/invoice-types",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "invoice-types"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetService Codes",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/services-codes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "services-codes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetVatExemptions",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/vat-exemptions",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "vat-exemptions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetCountries XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/countries",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "countries"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetCurrencies XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/currencies",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "currencies"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetTaxCategories XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/tax-categories",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "tax-categories"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetPaymentmeans XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/payment-means",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "payment-means"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetInvoiceTypes XML",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/invoice-types",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "invoice-types"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "GetVatExemptions XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/vat-exemptions",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "vat-exemptions"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Getproductcode XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/hs-codes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "hs-codes"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Getservices-codes XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/resources/services-codes",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "resources",
+                "services-codes"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Invoice",
+      "item": [
+        {
+          "name": "ValidateIRN",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{IAPI_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"invoice_reference\": \"ITW001\",\n    \"business_id\": \"{{TEST_BUSINESS_ID}}\",\n    \"irn\": \"{{TEST_IRN}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/irn/validate",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "irn",
+                "validate"
+              ]
+            },
+            "description": "This API enables users validate IRN by just sending the invoice reference, business id and irn"
+          },
+          "response": []
+        },
+        {
+          "name": "ValidateInvoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{IAPI_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"business_id\": \"{{TEST_BUSINESS_ID}}\",\n    \"irn\": \"ITW20853450-6997D6BB-20240703\",\n    \"issue_date\": \"2024-05-14\",\n    \"due_date\": \"2024-06-14\", //optional\n    \"issue_time\": \"17:59:04\", //optional   \n    \"invoice_type_code\": \"396\",\n    \"payment_status\": \"PENDING\", //optional, defaults to pending  \n    \"note\": \"dummy_note (will be encryted in storage)\", //optional\n    \"tax_point_date\": \"2024-05-14\", //optional\n    \"document_currency_code\": \"NGN\",\n    \"tax_currency_code\": \"NGN\", //optional\n    \"accounting_cost\": \"2000\", //optional\n    \"buyer_reference\": \"buyer REF IRN?\", //optional\n    \"invoice_delivery_period\": {\n        \"start_date\": \"2024-06-14\",\n        \"end_date\": \"2024-06-16\"\n    }, //optional\n    \"order_reference\": \"order REF IRN?\", //optional\n    \"billing_reference\": [\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        },\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        } //optional - second value to ...x in array is always optional\n    ], //optional\n    \"dispatch_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"receipt_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"originator_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, // optional\n    \"contract_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"_document_reference\": [\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        }\n    ], //optional\n    \"accounting_supplier_party\": {\n        \"party_name\": \"Test Pls\", \n        \"tin\": \"TIN-0099990001\",\n        \"email\": \"supplier_business@email.com\",\n        \"telephone\": \"+23480254099000\", //optional, must start with + (meaning country code) \n        \"business_description\": \"this entity is into sales of Cement and building materials\", //optional \n        \"postal_address\": {\n            \"street_name\": \"32, owonikoko street\", \n            \"city_name\": \"Gwarikpa\", \n            \"postal_zone\": \"023401\",\n            \"country\": \"NG\" \n        } \n    },\n    \"accounting_customer_party\": {\n        \"party_name\": \"Test Pls\", \n        \"tin\": \"TIN-000001\",\n        \"email\": \"business@email.com\",\n        \"telephone\": \"+23480254000000\", //optional, must start with + (meaning country code) \n        \"business_description\": \"this entity is into sales of Cement and building materials\", //optional \n        \"postal_address\": {\n            \"street_name\": \"32, owonikoko street\", \n            \"city_name\": \"Gwarikpa\", \n            \"postal_zone\": \"023401\", \n            \"country\": \"NG\" \n        } \n    },\n    // \"payee_party\": {}, //optional (party object, just like accounting_customer_party)\n    // \"tax_representative_party\": {}, //optional (party object, just like accounting_customer_party)\n    \"actual_delivery_date\": \"2024-05-14\", //optional\n    \"payment_means\": [\n        {\n            \"payment_means_code\": \"10\",\n            \"payment_due_date\": \"2024-05-14\"\n        },\n        {\n            \"payment_means_code\": \"43\",\n            \"payment_due_date\": \"2024-05-14\"\n        }//optional - second value to ...x in array is always optional\n    ],//optional\n    \"payment_terms_note\": \"dummy payment terms note (will be encryted in storage)\",//optional\n    \"allowance_charge\": [\n        {\n            \"charge_indicator\": true, //indicates whether the amount is a charge (true) or an allowance (false)\n            \"amount\": 800.60\n        },\n        {\n            \"charge_indicator\": false, //indicates whether the amount is a charge (true) or an allowance (false)\n            \"amount\": 10\n        }//optional - second value to ...x in array is always optional\n    ],//optional\n    \"tax_total\": [\n        {\n            \"tax_amount\": 56.07,\n            \"tax_subtotal\": [\n                {\n                    \"taxable_amount\": 800,\n                    \"tax_amount\": 8,\n                    \"tax_category\": {\n                        \"id\": \"LOCAL_SALES_TAX\",\n                        \"percent\": 2.3\n                    }\n                }\n            ]\n        }//second value to ...x in array is always optional if you want to add it\n    ],//optional\n    \"legal_monetary_total\": {\n        \"line_extension_amount\": 340.50,\n        \"tax_exclusive_amount\": 400,\n        \"tax_inclusive_amount\": 430,\n        \"payable_amount\": 30\n    },\n    \"invoice_line\": [\n        {\n            \"hsn_code\": \"CC-001\", // \n            \"product_category\": \"Food and Beverages\", // \n            \"discount_rate\": 2.01, // \n            \"discount_amount\": 3500, // \n            \"fee_rate\": 1.01, // \n            \"fee_amount\": 50, // \n            \"invoiced_quantity\": 15,\n            \"line_extension_amount\": 30,\n            \"item\": {\n                \"name\": \"item name\",\n                \"description\": \"item description\",\n                \"sellers_item_identification\": \"identified as spoon by the seller\" //optional\n            },\n            \"price\": {\n                \"price_amount\": 10,\n                \"base_quantity\": 3,\n                \"price_unit\": \"NGN per 1\"\n            }\n        },\n        {\n            \"hsn_code\": \"CC-001\", // \n            \"product_category\": \"Food and Beverages\", // \n            \"discount_rate\": 2.01, // \n            \"discount_amount\": 3500, // \n            \"fee_rate\": 1.01, // \n            \"fee_amount\": 50, // \n            \"invoiced_quantity\": 15,\n            \"line_extension_amount\": 30,\n            \"item\": {\n                \"name\": \"item nam 2\",\n                \"description\": \"item description 2\",\n                \"sellers_item_identification\": \"identified as shovel by the seller\"\n            },\n            \"price\": {\n                \"price_amount\": 20,\n                \"base_quantity\": 5,\n                \"price_unit\": \"NGN per 1\"\n            }\n        }//optional - second value to ...x in array is always optional\n    ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/validate",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "validate"
+              ]
+            },
+            "description": "This API’s helps in validating the content of the invoice to ensure all content are properly inoder before sending for signing\n\nAll data points follow the Universal Business Language (UBL) standard."
+          },
+          "response": []
+        },
+        {
+          "name": "SignInvoice",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{IAPI_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"business_id\": \"{{TEST_BUSINESS_ID}}\",\n    \"irn\": \"ITW20853450-6997D6BB-20240703\",\n    \"issue_date\": \"2024-05-14\",\n    \"due_date\": \"2024-06-14\", //optional\n    \"issue_time\": \"17:59:04\", //optional   \n    \"invoice_type_code\": \"396\",\n    \"payment_status\": \"PENDING\", //optional, defaults to pending  \n    \"note\": \"dummy_note (will be encryted in storage)\", //optional\n    \"tax_point_date\": \"2024-05-14\", //optional\n    \"document_currency_code\": \"NGN\",\n    \"tax_currency_code\": \"NGN\", //optional\n    \"accounting_cost\": \"2000\", //optional\n    \"buyer_reference\": \"buyer REF IRN?\", //optional\n    \"invoice_delivery_period\": {\n        \"start_date\": \"2024-06-14\",\n        \"end_date\": \"2024-06-16\"\n    }, //optional\n    \"order_reference\": \"order REF IRN?\", //optional\n    \"billing_reference\": [\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        },\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        } //optional - second value to ...x in array is always optional\n    ], //optional\n    \"dispatch_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"receipt_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"originator_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, // optional\n    \"contract_document_reference\": {\n        \"irn\": \"ITW001-E9E0C0D3-20240619\",\n        \"issue_date\":\"2024-05-14\"\n    }, //optional\n    \"_document_reference\": [\n        {\n            \"irn\": \"ITW001-E9E0C0D3-20240619\",\n            \"issue_date\":\"2024-05-14\"\n        }\n    ], //optional\n    \"accounting_supplier_party\": {\n        \"party_name\": \"Test Pls\",\n        \"tin\": \"TIN-0099990001\",\n        \"email\": \"supplier_business@email.com\",\n        \"telephone\": \"+23480254099000\", //optional, must start with + (meaning country code) \n        \"business_description\": \"this entity is into sales of Cement and building materials\", //optional \n        \"postal_address\": {\n            \"street_name\": \"32, owonikoko street\", \n            \"city_name\": \"Gwarikpa\", \n            \"postal_zone\": \"023401\", \n            \"country\": \"NG\" \n        } \n    },\n    \"accounting_customer_party\": {\n        \"party_name\": \"Test Pls\",\n        \"tin\": \"TIN-000001\",\n        \"email\": \"business@email.com\",\n        \"telephone\": \"+23480254000000\", //optional, must start with + (meaning country code) \n        \"business_description\": \"this entity is into sales of Cement and building materials\", //optional \n        \"postal_address\": {\n            \"street_name\": \"32, owonikoko street\", \n            \"city_name\": \"Gwarikpa\", \n            \"postal_zone\": \"023401\", \n            \"country\": \"NG\" \n        } \n    },\n    // \"payee_party\": {}, //optional (party object, just like accounting_customer_party)\n    // \"tax_representative_party\": {}, //optional (party object, just like accounting_customer_party)\n    \"actual_delivery_date\": \"2024-05-14\", //optional\n    \"payment_means\": [\n        {\n            \"payment_means_code\": \"10\",\n            \"payment_due_date\": \"2024-05-14\"\n        },\n        {\n            \"payment_means_code\": \"43\",\n            \"payment_due_date\": \"2024-05-14\"\n        }//optional - second value to ...x in array is always optional\n    ],//optional\n    \"payment_terms_note\": \"dummy payment terms note (will be encryted in storage)\",//optional\n    \"allowance_charge\": [\n        {\n            \"charge_indicator\": true, //indicates whether the amount is a charge (true) or an allowance (false)\n            \"amount\": 800.60\n        },\n        {\n            \"charge_indicator\": false, //indicates whether the amount is a charge (true) or an allowance (false)\n            \"amount\": 10\n        }//optional - second value to ...x in array is always optional\n    ],//optional\n    \"tax_total\": [\n        {\n            \"tax_amount\": 56.07,\n            \"tax_subtotal\": [\n                {\n                    \"taxable_amount\": 800,\n                    \"tax_amount\": 8,\n                    \"tax_category\": {\n                        \"id\": \"LOCAL_SALES_TAX\",\n                        \"percent\": 2.3\n                    }\n                }\n            ]\n        }//second value to ...x in array is always optional if you want to add it\n    ],//optional\n    \"legal_monetary_total\": {\n        \"line_extension_amount\": 340.50,\n        \"tax_exclusive_amount\": 400,\n        \"tax_inclusive_amount\": 430,\n        \"payable_amount\": 30\n    },\n    \"invoice_line\": [\n        {\n            \"hsn_code\": \"CC-001\", // \n            \"product_category\": \"Food and Beverages\", // \n            \"discount_rate\": 2.01, // \n            \"discount_amount\": 3500, // \n            \"fee_rate\": 1.01, // \n            \"fee_amount\": 50, // \n            \"invoiced_quantity\": 15,\n            \"line_extension_amount\": 30,\n            \"item\": {\n                \"name\": \"item name\",\n                \"description\": \"item description\",\n                \"sellers_item_identification\": \"identified as spoon by the seller\" //optional\n            },\n            \"price\": {\n                \"price_amount\": 10,\n                \"base_quantity\": 3,\n                \"price_unit\": \"NGN per 1\"\n            }\n        },\n        {\n            \"hsn_code\": \"CC-001\", // \n            \"product_category\": \"Food and Beverages\", // \n            \"discount_rate\": 2.01, // \n            \"discount_amount\": 3500, // \n            \"fee_rate\": 1.01, // \n            \"fee_amount\": 50, // \n            \"invoiced_quantity\": 15,\n            \"line_extension_amount\": 30,\n            \"item\": {\n                \"name\": \"item nam 2\",\n                \"description\": \"item description 2\",\n                \"sellers_item_identification\": \"identified as shovel by the seller\"\n            },\n            \"price\": {\n                \"price_amount\": 20,\n                \"base_quantity\": 5,\n                \"price_unit\": \"NGN per 1\"\n            }\n        }//optional - second value to ...x in array is always optional\n    ]\n}\n",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/sign",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "sign"
+              ]
+            },
+            "description": "This API enables users submit and sign an invoice\n\nAll datapoint should have been validated for errors\n\nAll datapoints follow the Universal Business Language (UBL) standard."
+          },
+          "response": []
+        },
+        {
+          "name": "DownloadInvoice",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/download/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "download",
+                "{{TEST_IRN}}"
+              ]
+            },
+            "description": "This API enables users to download an invoice by just sending certain parameters"
+          },
+          "response": []
+        },
+        {
+          "name": "UpdateInvoice",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"payment_status\": \"REJECTED\", // PENDING, PAID, REJECTED\n    \"reference\": \"payment_reference_or_note\" //optional\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/update/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "update",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ConfirmInvoice",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/confirm/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "confirm",
+                "{{TEST_IRN}}"
+              ]
+            },
+            "description": "This API enables users to confirm an invoice by just sending certain parameters"
+          },
+          "response": []
+        },
+        {
+          "name": "SearchInvoice",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/{{TEST_BUSINESS_ID}}?size=20&page=1&sort_by=created_at&sort_direction_desc=true&irn=ITW005-F3A3A0CF-20240703&payment_status=PENDING&invoice_type_code=396&issue_date=2024-06-14&due_date=2024-06-14&tax_currency_code=NGN&document_currency_code=NGN",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "{{TEST_BUSINESS_ID}}"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "created_at"
+                },
+                {
+                  "key": "sort_direction_desc",
+                  "value": "true"
+                },
+                {
+                  "key": "irn",
+                  "value": "ITW005-F3A3A0CF-20240703"
+                },
+                {
+                  "key": "payment_status",
+                  "value": "PENDING"
+                },
+                {
+                  "key": "invoice_type_code",
+                  "value": "396"
+                },
+                {
+                  "key": "issue_date",
+                  "value": "2024-06-14"
+                },
+                {
+                  "key": "due_date",
+                  "value": "2024-06-14"
+                },
+                {
+                  "key": "tax_currency_code",
+                  "value": "NGN"
+                },
+                {
+                  "key": "document_currency_code",
+                  "value": "NGN"
+                }
+              ]
+            },
+            "description": "This API enables users to search an invoice by just sending certain parameters"
+          },
+          "response": []
+        },
+        {
+          "name": "ValidateIRN XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "\n<ValidateIRNRequest>\n    <InvoiceReference>SAMMYTEST25</InvoiceReference>\n    <BusinessID>{{TEST_BUSINESS_ID}}</BusinessID>\n    <IRN>{{TEST_IRN}}</IRN>\n</ValidateIRNRequest>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/irn/validate",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "irn",
+                "validate"
+              ]
+            },
+            "description": "This API enables users validate IRN by just sending the invoice reference, business id and irn"
+          },
+          "response": []
+        },
+        {
+          "name": "ValidateInvoice XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<InvoiceRequest>\n    <BusinessID>{{TEST_BUSINESS_ID}}</BusinessID>\n    <IRN>{{TEST_IRN}}</IRN>\n    <IssueDate>2024-05-14</IssueDate>\n    <IssueTime>17:59:04</IssueTime>\n    <DueDate>2024-06-14</DueDate>\n    <InvoiceTypeCode>396</InvoiceTypeCode>\n    <Note>dummy_note (will be encryted in storage)</Note>\n    <PaymentStatus>PENDING</PaymentStatus>\n    <TaxPointDate>2024-05-14</TaxPointDate>\n    <DocumentCurrencyCode>NGN</DocumentCurrencyCode>\n    <TaxCurrencyCode>NGN</TaxCurrencyCode>\n    <AccountingCost>2000 NGN</AccountingCost>\n    <BuyerReference>buyer REF IRN?</BuyerReference>\n    <InvoiceDeliveryPeriod>\n        <StartDate>2024-06-14</StartDate>\n        <EndDate>2024-06-16</EndDate>\n    </InvoiceDeliveryPeriod>\n    <OrderReference>order REF IRN?</OrderReference>\n    <BillingReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </BillingReference>\n    <BillingReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </BillingReference>\n    <DispatchDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </DispatchDocumentReference>\n    <ReceiptDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </ReceiptDocumentReference>\n    <OriginatorDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </OriginatorDocumentReference>\n    <ContractDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </ContractDocumentReference>\n    <AdditionalDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </AdditionalDocumentReference>\n    <AccountingSupplierParty>\n        <PartyName>Dangote Group</PartyName>\n        <Tin>TIN-0099990001</Tin>\n        <Email>supplier_business@email.com</Email>\n        <Telephone>+23480254099000</Telephone>\n        <BusinessDescription>this entity is into sales of Cement and building materials</BusinessDescription>\n        <PostalAddress>\n            <StreetName>32, owonikoko street</StreetName>\n            <CityName>Gwarikpa</CityName>\n            <PostalZone>023401</PostalZone>\n            <Country>NG</Country>\n        </PostalAddress>\n    </AccountingSupplierParty>\n    <AccountingCustomerParty>\n        <PartyName>Dangote Group</PartyName>\n        <Tin>TIN-000001</Tin>\n        <Email>business@email.com</Email>\n        <Telephone>+23480254000000</Telephone>\n        <BusinessDescription>this entity is into sales of Cement and building materials</BusinessDescription>\n        <PostalAddress>\n            <StreetName>32, owonikoko street</StreetName>\n            <CityName>Gwarikpa</CityName>\n            <PostalZone>023401</PostalZone>\n            <Country>NG</Country>\n        </PostalAddress>\n    </AccountingCustomerParty>\n    <ActualDeliveryDate>2024-05-14</ActualDeliveryDate>\n    <PaymentMeans>\n        <PaymentMeansCode>10</PaymentMeansCode>\n        <PaymentDueDate>2024-05-14</PaymentDueDate>\n    </PaymentMeans>\n    <PaymentMeans>\n        <PaymentMeansCode>43</PaymentMeansCode>\n        <PaymentDueDate>2024-05-14</PaymentDueDate>\n    </PaymentMeans>\n    <PaymentTermsNote>dummy payment terms note (will be encryted in storage)</PaymentTermsNote>\n    <AllowanceCharge>\n        <ChargeIndicator>true</ChargeIndicator>\n        <Amount>800.6</Amount>\n    </AllowanceCharge>\n    <AllowanceCharge>\n        <ChargeIndicator>false</ChargeIndicator>\n        <Amount>10</Amount>\n    </AllowanceCharge>\n    <TaxTotal>\n        <TaxAmount>56.07</TaxAmount>\n        <TaxSubtotal>\n            <TaxableAmount>800</TaxableAmount>\n            <TaxAmount>8</TaxAmount>\n            <TaxCategory>\n                <ID>LOCAL_SALES_TAX</ID>\n                <Percent>2.3</Percent>\n            </TaxCategory>\n        </TaxSubtotal>\n    </TaxTotal>\n    <LegalMonetaryTotal>\n        <LineExtensionAmount>340.5</LineExtensionAmount>\n        <TaxExclusiveAmount>400</TaxExclusiveAmount>\n        <TaxInclusiveAmount>430</TaxInclusiveAmount>\n        <PayableAmount>30</PayableAmount>\n    </LegalMonetaryTotal>\n    <InvoiceLine>\n        <HsnCode>CC-001</HsnCode>\n        <ProductCategory>Food and Beverages</ProductCategory>\n        <DiscountRate>2.01</DiscountRate>\n        <DiscountAmount>3500</DiscountAmount>\n        <FeeRate>1.01</FeeRate>\n        <FeeAmount>50</FeeAmount>\n        <InvoicedQuantity>15</InvoicedQuantity>\n        <LineExtensionAmount>30</LineExtensionAmount>\n        <Item>\n            <Name>item name</Name>\n            <Description>item description</Description>\n            <SellersItemIdentification>identified as spoon by the seller</SellersItemIdentification>\n        </Item>\n        <Price>\n            <PriceAmount>10</PriceAmount>\n            <BaseQuantity>3</BaseQuantity>\n            <PriceUnit>NGN per 1</PriceUnit>\n        </Price>\n    </InvoiceLine>\n    <InvoiceLine>\n        <HsnCode>VV-AX-001</HsnCode>\n        <ProductCategory>Cars and Automobiles</ProductCategory>\n        <DiscountRate>2.01</DiscountRate>\n        <DiscountAmount>3500</DiscountAmount>\n        <FeeRate>1.01</FeeRate>\n        <FeeAmount>50</FeeAmount>\n        <InvoicedQuantity>2</InvoicedQuantity>\n        <LineExtensionAmount>100</LineExtensionAmount>\n        <Item>\n            <Name>item nam 2</Name>\n            <Description>item description 2</Description>\n            <SellersItemIdentification>identified as shovel by the seller</SellersItemIdentification>\n        </Item>\n        <Price>\n            <PriceAmount>20</PriceAmount>\n            <BaseQuantity>5</BaseQuantity>\n            <PriceUnit>NGN per 1</PriceUnit>\n        </Price>\n    </InvoiceLine>\n</InvoiceRequest>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/validate",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "validate"
+              ]
+            },
+            "description": "This API’s helps in validating the content of the invoice to ensure all content are properly inoder before sending for signing\n\nAll data points follow the Universal Business Language (UBL) standard."
+          },
+          "response": []
+        },
+        {
+          "name": "SignInvoice XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<InvoiceRequest>\n    <BusinessID>{{TEST_BUSINESS_ID}}</BusinessID>\n    <IRN>{{TEST_IRN}}</IRN>\n    <IssueDate>2024-05-14</IssueDate>\n    <IssueTime>17:59:04</IssueTime>\n    <DueDate>2024-06-14</DueDate>\n    <InvoiceTypeCode>396</InvoiceTypeCode>\n    <Note>dummy_note (will be encryted in storage)</Note>\n    <PaymentStatus>PENDING</PaymentStatus>\n    <TaxPointDate>2024-05-14</TaxPointDate>\n    <DocumentCurrencyCode>NGN</DocumentCurrencyCode>\n    <TaxCurrencyCode>NGN</TaxCurrencyCode>\n    <AccountingCost>2000 NGN</AccountingCost>\n    <BuyerReference>buyer REF IRN?</BuyerReference>\n    <InvoiceDeliveryPeriod>\n        <StartDate>2024-06-14</StartDate>\n        <EndDate>2024-06-16</EndDate>\n    </InvoiceDeliveryPeriod>\n    <OrderReference>order REF IRN?</OrderReference>\n    <BillingReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </BillingReference>\n    <BillingReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </BillingReference>\n    <DispatchDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </DispatchDocumentReference>\n    <ReceiptDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </ReceiptDocumentReference>\n    <OriginatorDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </OriginatorDocumentReference>\n    <ContractDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </ContractDocumentReference>\n    <AdditionalDocumentReference>\n        <IRN>ITW001-E9E0C0D3-20240619</IRN>\n        <IssueDate>2024-05-14</IssueDate>\n    </AdditionalDocumentReference>\n    <AccountingSupplierParty>\n        <PartyName>Dangote Group</PartyName>\n        <Tin>TIN-0099990001</Tin>\n        <Email>supplier_business@email.com</Email>\n        <Telephone>+23480254099000</Telephone>\n        <BusinessDescription>this entity is into sales of Cement and building materials</BusinessDescription>\n        <PostalAddress>\n            <StreetName>32, owonikoko street</StreetName>\n            <CityName>Gwarikpa</CityName>\n            <PostalZone>023401</PostalZone>\n            <Country>NG</Country>\n        </PostalAddress>\n    </AccountingSupplierParty>\n    <AccountingCustomerParty>\n        <PartyName>Dangote Group</PartyName>\n        <Tin>TIN-000001</Tin>\n        <Email>business@email.com</Email>\n        <Telephone>+23480254000000</Telephone>\n        <BusinessDescription>this entity is into sales of Cement and building materials</BusinessDescription>\n        <PostalAddress>\n            <StreetName>32, owonikoko street</StreetName>\n            <CityName>Gwarikpa</CityName>\n            <PostalZone>023401</PostalZone>\n            <Country>NG</Country>\n        </PostalAddress>\n    </AccountingCustomerParty>\n    <ActualDeliveryDate>2024-05-14</ActualDeliveryDate>\n    <PaymentMeans>\n        <PaymentMeansCode>10</PaymentMeansCode>\n        <PaymentDueDate>2024-05-14</PaymentDueDate>\n    </PaymentMeans>\n    <PaymentMeans>\n        <PaymentMeansCode>43</PaymentMeansCode>\n        <PaymentDueDate>2024-05-14</PaymentDueDate>\n    </PaymentMeans>\n    <PaymentTermsNote>dummy payment terms note (will be encryted in storage)</PaymentTermsNote>\n    <AllowanceCharge>\n        <ChargeIndicator>true</ChargeIndicator>\n        <Amount>800.6</Amount>\n    </AllowanceCharge>\n    <AllowanceCharge>\n        <ChargeIndicator>false</ChargeIndicator>\n        <Amount>10</Amount>\n    </AllowanceCharge>\n    <TaxTotal>\n        <TaxAmount>56.07</TaxAmount>\n        <TaxSubtotal>\n            <TaxableAmount>800</TaxableAmount>\n            <TaxAmount>8</TaxAmount>\n            <TaxCategory>\n                <ID>LOCAL_SALES_TAX</ID>\n                <Percent>2.3</Percent>\n            </TaxCategory>\n        </TaxSubtotal>\n    </TaxTotal>\n    <LegalMonetaryTotal>\n        <LineExtensionAmount>340.5</LineExtensionAmount>\n        <TaxExclusiveAmount>400</TaxExclusiveAmount>\n        <TaxInclusiveAmount>430</TaxInclusiveAmount>\n        <PayableAmount>30</PayableAmount>\n    </LegalMonetaryTotal>\n    <InvoiceLine>\n        <HsnCode>CC-001</HsnCode>\n        <ProductCategory>Food and Beverages</ProductCategory>\n        <DiscountRate>2.01</DiscountRate>\n        <DiscountAmount>3500</DiscountAmount>\n        <FeeRate>1.01</FeeRate>\n        <FeeAmount>50</FeeAmount>\n        <InvoicedQuantity>15</InvoicedQuantity>\n        <LineExtensionAmount>30</LineExtensionAmount>\n        <Item>\n            <Name>item name</Name>\n            <Description>item description</Description>\n            <SellersItemIdentification>identified as spoon by the seller</SellersItemIdentification>\n        </Item>\n        <Price>\n            <PriceAmount>10</PriceAmount>\n            <BaseQuantity>3</BaseQuantity>\n            <PriceUnit>NGN per 1</PriceUnit>\n        </Price>\n    </InvoiceLine>\n    <InvoiceLine>\n        <HsnCode>VV-AX-001</HsnCode>\n        <ProductCategory>Cars and Automobiles</ProductCategory>\n        <DiscountRate>2.01</DiscountRate>\n        <DiscountAmount>3500</DiscountAmount>\n        <FeeRate>1.01</FeeRate>\n        <FeeAmount>50</FeeAmount>\n        <InvoicedQuantity>2</InvoicedQuantity>\n        <LineExtensionAmount>100</LineExtensionAmount>\n        <Item>\n            <Name>item nam 2</Name>\n            <Description>item description 2</Description>\n            <SellersItemIdentification>identified as shovel by the seller</SellersItemIdentification>\n        </Item>\n        <Price>\n            <PriceAmount>20</PriceAmount>\n            <BaseQuantity>5</BaseQuantity>\n            <PriceUnit>NGN per 1</PriceUnit>\n        </Price>\n    </InvoiceLine>\n</InvoiceRequest>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/sign",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "sign"
+              ]
+            },
+            "description": "This API enables users submit and sign an invoice\n\nAll datapoint should have been validated for errors\n\nAll datapoints follow the Universal Business Language (UBL) standard."
+          },
+          "response": []
+        },
+        {
+          "name": "DownloadInvoice",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}",
+                "type": "text"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}",
+                "type": "text"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/download/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "download",
+                "{{TEST_IRN}}"
+              ]
+            },
+            "description": "This API enables users to download an invoice by just sending certain parameters"
+          },
+          "response": []
+        },
+        {
+          "name": "UpdateInvoice XML",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "<UpdateInvoiceRequest>\n  <PaymentStatus>PAID</PaymentStatus>\n  <Reference>payment_reference_or_note</Reference>\n</UpdateInvoiceRequest>",
+              "options": {
+                "raw": {
+                  "language": "xml"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/update/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "update",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "ConfirmInvoice XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/confirm/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "confirm",
+                "{{TEST_IRN}}"
+              ]
+            },
+            "description": "This API enables users to confirm an invoice by just sending certain parameters"
+          },
+          "response": []
+        },
+        {
+          "name": "SearchInvoice XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/{{TEST_BUSINESS_ID}}?size=20&page=1&sort_by=created_at&sort_direction_desc=true&irn=ITW005-F3A3A0CF-20240703&payment_status=PENDING&invoice_type_code=396&issue_date=2024-06-14&due_date=2024-06-14&tax_currency_code=NGN&document_currency_code=NGN",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "{{TEST_BUSINESS_ID}}"
+              ],
+              "query": [
+                {
+                  "key": "size",
+                  "value": "20"
+                },
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "sort_by",
+                  "value": "created_at"
+                },
+                {
+                  "key": "sort_direction_desc",
+                  "value": "true"
+                },
+                {
+                  "key": "irn",
+                  "value": "ITW005-F3A3A0CF-20240703"
+                },
+                {
+                  "key": "payment_status",
+                  "value": "PENDING"
+                },
+                {
+                  "key": "invoice_type_code",
+                  "value": "396"
+                },
+                {
+                  "key": "issue_date",
+                  "value": "2024-06-14"
+                },
+                {
+                  "key": "due_date",
+                  "value": "2024-06-14"
+                },
+                {
+                  "key": "tax_currency_code",
+                  "value": "NGN"
+                },
+                {
+                  "key": "document_currency_code",
+                  "value": "NGN"
+                }
+              ]
+            },
+            "description": "This API enables users to search an invoice by just sending certain parameters"
+          },
+          "response": []
+        }
+      ],
+      "description": "This API suite is designed to perform a full range of invoice-related actions, offering endpoints that support the validation, management, and processing of invoices within the E-invoice system. Each endpoint in this suite is purpose-built to facilitate specific invoice workflows, ensuring seamless, secure, and efficient handling of all invoicing tasks."
+    },
+    {
+      "name": "Transmitting",
+      "item": [
+        {
+          "name": "LookupWithIRN",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/transmit/lookup/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "transmit",
+                "lookup",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LookupWithTIN",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/transmit/lookup/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "transmit",
+                "lookup",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "LookupWithIRN XML",
+          "protocolProfileBehavior": {
+            "disableBodyPruning": true
+          },
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              },
+              {
+                "key": "Accept",
+                "value": "application/xml",
+                "type": "text"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/transmit/lookup/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "transmit",
+                "lookup",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transmit XML",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/transmit/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "transmit",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Transmit",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "x-api-key",
+                "value": "{{API_KEY}}"
+              },
+              {
+                "key": "x-api-secret",
+                "value": "{{API_SECRET}}"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseURL}}/api/v1/invoice/transmit/{{TEST_IRN}}",
+              "host": [
+                "{{baseURL}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "invoice",
+                "transmit",
+                "{{TEST_IRN}}"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "HealthCheck",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseURL}}/api",
+          "host": [
+            "{{baseURL}}"
+          ],
+          "path": [
+            "api"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "HOST",
+      "value": "",
+      "type": "string",
+      "disabled": true
+    },
+    {
+      "key": "baseURL",
+      "value": "{{HOST}}",
+      "type": "string"
+    }
+  ]
+}
