@@ -275,10 +275,12 @@ veridex-backend/
 │   │   │   ├── NrsController.php
 │   │   │   ├── NrsResourceController.php
 │   │   │   ├── ActivityLogController.php
-│   │   │   └── ReportController.php
+│   │   │   ├── ReportController.php
+│   │   │   └── SuperAdminController.php     # ← NEW: Platform admin
 │   │   │
 │   │   ├── Middleware/
 │   │   │   ├── EnsureOrganizationScope.php
+│   │   │   ├── EnsureSuperAdmin.php          # ← NEW: Super admin gate
 │   │   │   └── LogUserActivity.php
 │   │   │
 │   │   ├── Requests/
@@ -429,6 +431,7 @@ veridex-backend/
 │   │
 │   ├── Middleware/
 │   │   ├── EnsureOrganizationScope.php
+│   │   ├── EnsureSuperAdmin.php               # ← NEW: Super admin gate
 │   │   ├── LogUserActivity.php
 │   │   └── EnsureIdempotencyKey.php           # Requires X-Idempotency-Key header
 │   │
@@ -436,6 +439,10 @@ veridex-backend/
 │   │   ├── InvoicePolicy.php
 │   │   ├── CustomerPolicy.php
 │   │   └── OrganizationPolicy.php
+│   │
+│   ├── Console/
+│   │   └── Commands/
+│   │       └── MakeSuperAdmin.php             # ← NEW: php artisan veridex:make-super-admin
 │   │
 │   └── Providers/
 │       ├── AppServiceProvider.php
@@ -457,6 +464,489 @@ veridex-backend/
 
 > [!NOTE]
 > **No Repository Layer** — Eloquent models already implement the repository pattern. Services work directly with Eloquent models, keeping the codebase lean. Query scopes and model methods handle reusable queries.
+
+---
+
+### 4.2 Super Admin & Platform Roles
+
+Veridex has two **independent** authorization layers:
+
+| Layer | Scope | Storage | Purpose |
+|---|---|---|---|
+| **Platform Role** | System-wide | `users.is_super_admin` | Cross-organization access, system management |
+| **Organization Role** | Per-organization | `organization_user.role` | Team-level RBAC within a single org |
+
+```mermaid
+graph TD
+    A["User authenticates"] --> B{"is_super_admin?"}
+    B -->|Yes| C["Super Admin Panel<br/>(All orgs, all data)"]
+    B -->|No| D{"Has org membership?"}
+    D -->|Yes| E["Organization Dashboard<br/>(Scoped to current org)"]
+    D -->|No| F["Onboarding<br/>(Create or join org)"]
+    C --> G["Can also access<br/>any org dashboard"]
+```
+
+> [!IMPORTANT]
+> Super admin is a **platform-level flag**, not an organization role. A super admin can access every organization's data, manage all users, and perform system-wide operations. This role is **never** assignable via the UI — only via an Artisan command.
+
+#### UserRole Enum (Organization-Scoped)
+
+```php
+// app/Enums/UserRole.php
+
+namespace App\Enums;
+
+enum UserRole: string
+{
+    case OWNER  = 'owner';     // Full control, billing, can delete org
+    case ADMIN  = 'admin';     // Manage team, settings, all CRUD
+    case EDITOR = 'editor';    // Create/edit invoices, customers, products
+    case VIEWER = 'viewer';    // Read-only access
+    case MEMBER = 'member';    // Default role on invite
+
+    public function label(): string
+    {
+        return match ($this) {
+            self::OWNER  => 'Owner',
+            self::ADMIN  => 'Administrator',
+            self::EDITOR => 'Editor',
+            self::VIEWER => 'Viewer',
+            self::MEMBER => 'Member',
+        };
+    }
+
+    /** Returns true if this role can manage team members */
+    public function canManageTeam(): bool
+    {
+        return in_array($this, [self::OWNER, self::ADMIN]);
+    }
+
+    /** Returns true if this role can create/edit resources */
+    public function canEdit(): bool
+    {
+        return in_array($this, [self::OWNER, self::ADMIN, self::EDITOR]);
+    }
+}
+```
+
+#### User Model — Super Admin Check
+
+```php
+// app/Models/User.php — additions
+
+class User extends Authenticatable
+{
+    use HasFactory, Notifiable, HasApiTokens;
+
+    protected $fillable = [
+        'name', 'email', 'password', 'current_organization_id', 'is_super_admin',
+    ];
+
+    protected $hidden = ['password', 'remember_token'];
+
+    protected function casts(): array
+    {
+        return [
+            'email_verified_at' => 'datetime',
+            'password'          => 'hashed',
+            'is_super_admin'    => 'boolean',
+        ];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->is_super_admin === true;
+    }
+
+    /**
+     * Get the user's role in a specific organization.
+     */
+    public function roleIn(Organization $org): ?UserRole
+    {
+        $pivot = $this->organizations()
+            ->where('organization_id', $org->id)
+            ->first()?->pivot;
+
+        return $pivot ? UserRole::from($pivot->role) : null;
+    }
+
+    public function organizations(): BelongsToMany
+    {
+        return $this->belongsToMany(Organization::class)->withPivot('role')->withTimestamps();
+    }
+
+    public function currentOrganization(): BelongsTo
+    {
+        return $this->belongsTo(Organization::class, 'current_organization_id');
+    }
+
+    public function currentOrganizationId(): ?int
+    {
+        return $this->current_organization_id;
+    }
+}
+```
+
+#### Migration
+
+```php
+// database/migrations/xxxx_add_is_super_admin_to_users_table.php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->boolean('is_super_admin')->default(false)->after('password');
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::table('users', function (Blueprint $table) {
+            $table->dropColumn('is_super_admin');
+        });
+    }
+};
+```
+
+#### EnsureSuperAdmin Middleware
+
+```php
+// app/Http/Middleware/EnsureSuperAdmin.php
+
+namespace App\Http\Middleware;
+
+use Closure;
+use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\Response;
+
+class EnsureSuperAdmin
+{
+    public function handle(Request $request, Closure $next): Response
+    {
+        if (!$request->user()?->isSuperAdmin()) {
+            return response()->json([
+                'message' => 'Forbidden. Super admin access required.',
+            ], 403);
+        }
+
+        return $next($request);
+    }
+}
+```
+
+> [!NOTE]
+> Super admin routes **do not** apply the `EnsureOrganizationScope` middleware. Super admins operate outside the organization context — they can query any organization's data by passing the `organization_id` as a parameter.
+
+#### Artisan Command — Promote User
+
+```php
+// app/Console/Commands/MakeSuperAdmin.php
+
+namespace App\Console\Commands;
+
+use App\Models\User;
+use Illuminate\Console\Command;
+
+class MakeSuperAdmin extends Command
+{
+    protected $signature = 'veridex:make-super-admin {email}';
+    protected $description = 'Promote a user to super admin';
+
+    public function handle(): int
+    {
+        $email = $this->argument('email');
+        $user = User::where('email', $email)->first();
+
+        if (!$user) {
+            $this->error("User with email '{$email}' not found.");
+            return self::FAILURE;
+        }
+
+        if ($user->is_super_admin) {
+            $this->warn("{$user->name} is already a super admin.");
+            return self::SUCCESS;
+        }
+
+        $user->update(['is_super_admin' => true]);
+
+        $this->info("✅ {$user->name} ({$email}) is now a super admin.");
+        return self::SUCCESS;
+    }
+}
+```
+
+> [!CAUTION]
+> There is **no API endpoint** to grant super admin. This is intentional — super admin promotion is a **server-side only** operation. If the database or API is compromised, an attacker cannot escalate to super admin without shell access.
+
+#### Super Admin Controller
+
+```php
+// app/Http/Controllers/Api/SuperAdminController.php
+
+namespace App\Http\Controllers\Api;
+
+use App\Http\Controllers\Controller;
+use App\Models\Organization;
+use App\Models\User;
+use App\Models\Invoice;
+use App\Models\NrsSubmission;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
+
+class SuperAdminController extends Controller
+{
+    /**
+     * Platform-wide dashboard stats.
+     */
+    public function dashboard(): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'total_organizations' => Organization::count(),
+                'total_users'         => User::count(),
+                'total_invoices'      => Invoice::count(),
+                'nrs_submissions'     => [
+                    'total'   => NrsSubmission::count(),
+                    'pending' => NrsSubmission::where('status', 'pending')->count(),
+                    'failed'  => NrsSubmission::where('status', 'failed')->count(),
+                ],
+                'invoices_by_status'  => Invoice::selectRaw('status, count(*) as count')
+                    ->groupBy('status')
+                    ->pluck('count', 'status'),
+            ],
+        ]);
+    }
+
+    /**
+     * List all organizations with stats.
+     */
+    public function organizations(Request $request): JsonResponse
+    {
+        $orgs = Organization::withCount(['invoices', 'users', 'customers'])
+            ->when($request->search, fn($q, $s) => $q->where('name', 'like', "%{$s}%"))
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 20);
+
+        return response()->json($orgs);
+    }
+
+    /**
+     * List all users with their organization memberships.
+     */
+    public function users(Request $request): JsonResponse
+    {
+        $users = User::with('organizations:id,name')
+            ->when($request->search, fn($q, $s) => $q->where('name', 'like', "%{$s}%")
+                ->orWhere('email', 'like', "%{$s}%"))
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 20);
+
+        return response()->json($users);
+    }
+
+    /**
+     * View a specific organization's full details.
+     */
+    public function showOrganization(Organization $organization): JsonResponse
+    {
+        return response()->json([
+            'data' => $organization->loadCount(['invoices', 'users', 'customers', 'products'])
+                ->load('users:id,name,email'),
+        ]);
+    }
+
+    /**
+     * Platform-wide NRS submission logs.
+     */
+    public function nrsLogs(Request $request): JsonResponse
+    {
+        $logs = NrsSubmission::with(['invoice:id,invoice_number,irn', 'invoice.organization:id,name'])
+            ->when($request->status, fn($q, $s) => $q->where('status', $s))
+            ->when($request->action, fn($q, $a) => $q->where('action', $a))
+            ->orderBy('created_at', 'desc')
+            ->paginate($request->per_page ?? 50);
+
+        return response()->json($logs);
+    }
+}
+```
+
+#### Super Admin Routes
+
+```php
+// routes/api.php — Super Admin route group
+
+// Placed OUTSIDE the org.scope middleware group, INSIDE auth:sanctum
+Route::middleware(['auth:sanctum', 'throttle:api', 'super_admin'])->prefix('admin')->group(function () {
+    Route::get('/dashboard',                    [SuperAdminController::class, 'dashboard']);
+    Route::get('/organizations',                [SuperAdminController::class, 'organizations']);
+    Route::get('/organizations/{organization}', [SuperAdminController::class, 'showOrganization']);
+    Route::get('/users',                        [SuperAdminController::class, 'users']);
+    Route::get('/nrs-logs',                     [SuperAdminController::class, 'nrsLogs']);
+});
+```
+
+#### Auth Response — Super Admin Flag
+
+The `/me` endpoint and login/register responses include the `is_super_admin` flag:
+
+```php
+// In AuthController — updated response structure
+
+return response()->json([
+    'user' => [
+        'id'                      => $user->id,
+        'name'                    => $user->name,
+        'email'                   => $user->email,
+        'is_super_admin'          => $user->is_super_admin,
+        'current_organization_id' => $user->current_organization_id,
+        'current_organization'    => $user->currentOrganization,
+    ],
+    'token' => $token,
+]);
+```
+
+#### Frontend — Super Admin Dashboard
+
+The admin panel is a separate route group, guarded by the `is_super_admin` flag from the auth context.
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  ┌─ Super Admin Panel ──────────────────────────────────────────────┐  │
+│  │  VERIDEX ADMIN                              [user@admin.com] ▼   │  │
+│  ├──────────────────────────────────────────────────────────────────┤  │
+│  │                                                                  │  │
+│  │  ┌─── Platform Overview ───────────────────────────────────────┐ │  │
+│  │  │                                                             │ │  │
+│  │  │   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  │ │  │
+│  │  │   │ Orgs     │  │ Users    │  │ Invoices │  │ NRS Calls│  │ │  │
+│  │  │   │   42     │  │   156    │  │  1,247   │  │  3,891   │  │ │  │
+│  │  │   └──────────┘  └──────────┘  └──────────┘  └──────────┘  │ │  │
+│  │  │                                                             │ │  │
+│  │  │   NRS Health: ● Online    Failed (24h): 12    Pending: 3   │ │  │
+│  │  │                                                             │ │  │
+│  │  └─────────────────────────────────────────────────────────────┘ │  │
+│  │                                                                  │  │
+│  │  ┌─── Organizations ──────────────────────────────────────────┐  │  │
+│  │  │  [Search organizations...]                    [Export CSV]  │  │  │
+│  │  │                                                            │  │  │
+│  │  │  #   Name              TIN            Users  Invoices      │  │  │
+│  │  │  ──  ────────────────  ─────────────  ─────  ────────      │  │  │
+│  │  │  1   Dangote Group     TIN-0099990001   8      342         │  │  │
+│  │  │  2   Zenith Foods      TIN-0012340001   3       87         │  │  │
+│  │  │  3   Kuda Microfinance TIN-0056780001   5      218         │  │  │
+│  │  │  4   Paystack Ltd      TIN-0098760001   12     501         │  │  │
+│  │  │                                                            │  │  │
+│  │  │  ← 1 2 3 ... 5 →                                          │  │  │
+│  │  └────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                  │  │
+│  │  ┌─── Recent NRS Failures ────────────────────────────────────┐  │  │
+│  │  │  Invoice        Org              Action     Error    Time  │  │  │
+│  │  │  ──────────     ─────────────    ────────   ──────   ────  │  │  │
+│  │  │  INV-2026-042   Dangote Group    sign       422      2m    │  │  │
+│  │  │  INV-2026-039   Zenith Foods     validate   500      15m   │  │  │
+│  │  │  INV-2026-051   Kuda Micro       transmit   timeout  1h    │  │  │
+│  │  │                                                [View All →]│  │  │
+│  │  └────────────────────────────────────────────────────────────┘  │  │
+│  │                                                                  │  │
+│  └──────────────────────────────────────────────────────────────────┘  │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+#### Frontend — Route Guard & Types
+
+```typescript
+// src/types/admin.ts
+
+export interface PlatformStats {
+  total_organizations: number;
+  total_users: number;
+  total_invoices: number;
+  nrs_submissions: {
+    total: number;
+    pending: number;
+    failed: number;
+  };
+  invoices_by_status: Record<string, number>;
+}
+
+export interface AdminOrganization {
+  id: number;
+  name: string;
+  tin: string;
+  nrs_business_id: string;
+  invoices_count: number;
+  users_count: number;
+  customers_count: number;
+  created_at: string;
+}
+
+export interface AdminUser {
+  id: number;
+  name: string;
+  email: string;
+  is_super_admin: boolean;
+  organizations: { id: number; name: string }[];
+  created_at: string;
+}
+```
+
+```typescript
+// src/api/auth.ts — User type update
+
+export interface User {
+  id: number;
+  name: string;
+  email: string;
+  is_super_admin: boolean;              // ← NEW
+  current_organization_id: number;
+  current_organization?: {
+    id: number;
+    name: string;
+    nrs_business_id: string;
+  };
+}
+```
+
+```tsx
+// src/App.tsx — Admin route guard
+
+const router = createBrowserRouter([
+  // ... existing routes ...
+
+  // Super Admin Routes
+  {
+    path: '/admin',
+    element: <SuperAdminGuard><AdminLayout /></SuperAdminGuard>,
+    errorElement: <RouteErrorBoundary />,
+    children: [
+      { index: true, element: <AdminDashboardPage /> },
+      { path: 'organizations', element: <AdminOrganizationsPage /> },
+      { path: 'organizations/:id', element: <AdminOrganizationDetailPage /> },
+      { path: 'users', element: <AdminUsersPage /> },
+      { path: 'nrs-logs', element: <AdminNrsLogsPage /> },
+    ],
+  },
+]);
+
+// src/components/guards/SuperAdminGuard.tsx
+
+function SuperAdminGuard({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+
+  if (!user?.is_super_admin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+
+  return <>{children}</>;
+}
+```
 
 ---
 
@@ -1167,6 +1657,7 @@ erDiagram
         string email UK
         string password
         string phone
+        boolean is_super_admin
         timestamp email_verified_at
     }
 
@@ -1577,11 +2068,17 @@ veridex-frontend/src/
 │   │   └── ReportsPage.tsx
 │   ├── activity/
 │   │   └── ActivityLogPage.tsx
-│   └── settings/
-│       ├── OrganizationSettingsPage.tsx
-│       ├── NrsConfigPage.tsx
-│       ├── TeamMembersPage.tsx
-│       └── ProfilePage.tsx
+│   ├── settings/
+│   │   ├── OrganizationSettingsPage.tsx
+│   │   ├── NrsConfigPage.tsx
+│   │   ├── TeamMembersPage.tsx
+│   │   └── ProfilePage.tsx
+│   └── admin/                               # ← NEW: Super Admin
+│       ├── AdminDashboardPage.tsx
+│       ├── AdminOrganizationsPage.tsx
+│       ├── AdminOrganizationDetailPage.tsx
+│       ├── AdminUsersPage.tsx
+│       └── AdminNrsLogsPage.tsx
 │
 ├── components/
 │   ├── ui/                                  # shadcn/ui primitives
@@ -1641,6 +2138,9 @@ veridex-frontend/src/
 │   ├── customers/
 │   │   └── CustomerForm.tsx
 │   │
+│   ├── guards/                              # ← NEW: Route guards
+│   │   └── SuperAdminGuard.tsx
+│   │
 │   └── shared/
 │       ├── DataTable.tsx
 │       ├── EmptyState.tsx
@@ -1664,6 +2164,7 @@ veridex-frontend/src/
     ├── timeline.ts                          # ← NEW
     ├── activity.ts                          # ← NEW
     ├── organization.ts
+    ├── admin.ts                              # ← NEW
     └── api.ts
 ```
 
@@ -2468,9 +2969,378 @@ class NrsWebhookController extends Controller
 > [!TIP]
 > The `trigger` field on `invoice_state_transitions` distinguishes how a state change happened: `manual`, `nrs_validate`, `nrs_sign`, `nrs_transmit`, `nrs_poll`, `nrs_webhook`. This makes debugging async flows straightforward.
 
+## 13. Current Implementation Status
+
+> [!WARNING]
+> This architecture document describes the **complete target state**. Many components are documented but **not yet implemented**. This section tracks what exists in the codebase as of **April 2026**.
+
+### 13.1 Backend — Implementation Matrix
+
+#### Controllers (`app/Http/Controllers/Api/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `AuthController.php` | ✅ | ✅ | Login, register, logout, me |
+| `DashboardController.php` | ✅ | ✅ | |
+| `InvoiceController.php` | ✅ | ✅ | Full CRUD + NRS actions |
+| `CustomerController.php` | ✅ | ✅ | |
+| `ProductController.php` | ✅ | ✅ | |
+| `OrganizationController.php` | ✅ | ✅ | |
+| `NrsController.php` | ✅ | ❌ | Not created — NRS actions live on InvoiceController |
+| `NrsResourceController.php` | ✅ | ✅ | |
+| `ActivityLogController.php` | ✅ | ✅ | |
+| `ReportController.php` | ✅ | ✅ | |
+| `SuperAdminController.php` | ✅ | ❌ | Phase 6 |
+| `TeamController.php` | ❌ | ✅ | Exists but not in original architecture doc |
+| `OnboardingController.php` | ❌ | ✅ | Exists but not in original architecture doc |
+| `NrsWebhookController.php` | ✅ | ✅ | Scaffold only |
+
+#### Middleware
+
+| File | Location | Documented | Exists | Notes |
+|---|---|---|---|---|
+| `EnsureOrganizationScope.php` | `Http/Middleware/` | ✅ | ✅ | |
+| `LogUserActivity.php` | `Http/Middleware/` | ✅ | ❌ | Not created |
+| `EnsureIdempotencyKey.php` | `app/Middleware/` | ✅ | ❌ | Not created |
+| `EnsureSuperAdmin.php` | Both | ✅ | ❌ | Phase 6 |
+
+#### Models (`app/Models/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `User.php` | ✅ | ✅ | Missing `is_super_admin` column |
+| `Organization.php` | ✅ | ✅ | |
+| `Invoice.php` | ✅ | ✅ | |
+| `InvoiceLine.php` | ✅ | ✅ | |
+| `InvoiceTaxTotal.php` | ✅ | ✅ | |
+| `InvoiceAllowanceCharge.php` | ✅ | ✅ | |
+| `InvoicePaymentMeans.php` | ✅ | ✅ | |
+| `InvoiceDocReference.php` | ✅ | ✅ | |
+| `InvoiceStateTransition.php` | ✅ | ✅ | |
+| `Customer.php` | ✅ | ✅ | |
+| `Product.php` | ✅ | ✅ | |
+| `NrsSubmission.php` | ✅ | ✅ | |
+| `ActivityLog.php` | ✅ | ✅ | |
+| `NrsApiLog.php` | ❌ | ✅ | Exists but not in architecture doc |
+
+#### DTOs (`app/DTOs/`)
+
+| Directory | Documented | Exists | Notes |
+|---|---|---|---|
+| `Invoice/` (8 files) | ✅ | ✅ | All 8 Invoice DTOs exist |
+| `Auth/` (2 files) | ✅ | ✅ | LoginDTO, RegisterDTO |
+| `Customer/` | ✅ | ❌ | Not created |
+| `Product/` | ✅ | ❌ | Not created |
+| `Nrs/` (11 files) | ✅ | ❌ | NRS-specific payload DTOs not created — payload built directly in `NrsPayloadBuilder` |
+
+#### Services (`app/Services/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `InvoiceService.php` | ✅ | ✅ | |
+| `InvoiceStateService.php` | ✅ | ✅ | |
+| `CustomerService.php` | ✅ | ✅ | |
+| `ProductService.php` | ✅ | ✅ | Minimal |
+| `ActivityLogService.php` | ✅ | ✅ | |
+| `DashboardService.php` | ✅ | ✅ | |
+| `InvoicePdfService.php` | ❌ | ✅ | Exists but not in architecture doc |
+| `IdempotencyService.php` | ✅ | ❌ | Not created |
+
+#### NRS Services (`app/Services/Nrs/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `NrsClient.php` | ✅ | ✅ | |
+| `NrsInvoiceService.php` | ✅ | ✅ | Synchronous — no queue dispatch |
+| `NrsPayloadBuilder.php` | ✅ | ✅ | |
+| `NrsResourceService.php` | ✅ | ✅ | |
+| `NrsAuthService.php` | ✅ | ❌ | Not created |
+| `NrsEntityService.php` | ✅ | ❌ | Not created |
+| `NrsTransmitService.php` | ✅ | ❌ | Transmit logic lives in `NrsInvoiceService` |
+| `NrsIrnGenerator.php` | ✅ | ❌ | IRN generation lives in `NrsPayloadBuilder` |
+
+#### Jobs (`app/Jobs/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| **Entire directory** | ✅ | ❌ | **Directory does not exist** |
+| `ValidateInvoiceOnNrs.php` | ✅ | ❌ | All NRS calls are synchronous |
+| `SignInvoiceOnNrs.php` | ✅ | ❌ | |
+| `TransmitInvoiceOnNrs.php` | ✅ | ❌ | |
+| `ResolveStuckPendingInvoices.php` | ✅ | ❌ | Similar `RecoverStuckInvoices` exists as Artisan command |
+| `SyncNrsResources.php` | ✅ | ❌ | |
+| `PollNrsInvoiceStatus.php` | ✅ | ❌ | Similar `PollNrsConfirmations` exists as Artisan command |
+
+> [!IMPORTANT]
+> **No queue-based NRS processing exists.** All NRS API calls (validate, sign, transmit, confirm) execute **synchronously** in the HTTP request cycle via `NrsInvoiceService`. The retry/backoff strategy documented in §10 is entirely unimplemented. Two related Artisan commands exist: `RecoverStuckInvoices` and `PollNrsConfirmations`.
+
+#### Events (`app/Events/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| **Entire directory** | ✅ | ❌ | **Directory does not exist** |
+| `InvoiceCreated.php` | ✅ | ❌ | |
+| `InvoiceUpdated.php` | ✅ | ❌ | |
+| `InvoiceStatusChanged.php` | ✅ | ❌ | |
+| `InvoiceValidated.php` | ✅ | ❌ | |
+| `InvoiceSigned.php` | ✅ | ❌ | |
+| `InvoiceTransmitted.php` | ✅ | ❌ | |
+| `InvoiceConfirmed.php` | ✅ | ❌ | |
+| `InvoicePaymentUpdated.php` | ✅ | ❌ | |
+
+#### Listeners (`app/Listeners/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| **Entire directory** | ✅ | ❌ | **Directory does not exist** |
+| `RecordStateTransition.php` | ✅ | ❌ | State transitions recorded directly in `InvoiceStateService` |
+| `RecordActivityLog.php` | ✅ | ❌ | Activity logged directly in controllers |
+| `RecordNrsSubmission.php` | ✅ | ❌ | Submissions recorded directly in `NrsInvoiceService` |
+
+#### Enums (`app/Enums/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `InvoiceStatus.php` | ✅ | ✅ | |
+| `PaymentStatus.php` | ✅ | ✅ | |
+| `InvoiceTypeCode.php` | ✅ | ✅ | |
+| `NrsAction.php` | ✅ | ✅ | |
+| `NrsSubmissionStatus.php` | ✅ | ✅ | |
+| `ActivityAction.php` | ✅ | ✅ | |
+| `DocReferenceType.php` | ✅ | ✅ | |
+| `UserRole.php` | ✅ | ❌ | Phase 6 |
+
+#### Exceptions (`app/Exceptions/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `NrsApiException.php` | ✅ | ✅ | |
+| `NrsConnectionException.php` | ✅ | ✅ | |
+| `InvoiceStateException.php` | ✅ | ✅ | |
+| `NrsValidationException.php` | ✅ | ❌ | |
+| `NrsRateLimitException.php` | ✅ | ❌ | |
+| `IdempotencyConflictException.php` | ✅ | ❌ | |
+| `IrnCollisionException.php` | ✅ | ❌ | |
+| `Handler.php` | ✅ | ❌ | |
+
+#### Policies (`app/Policies/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| **Entire directory** | ✅ | ❌ | **Directory does not exist** |
+| `InvoicePolicy.php` | ✅ | ❌ | Phase 6 |
+| `CustomerPolicy.php` | ✅ | ❌ | Phase 6 |
+| `OrganizationPolicy.php` | ✅ | ❌ | Phase 6 |
+
+#### Providers (`app/Providers/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `AppServiceProvider.php` | ✅ | ✅ | |
+| `NrsServiceProvider.php` | ✅ | ❌ | NRS services registered in AppServiceProvider |
+
+#### Console Commands (`app/Console/Commands/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `MakeSuperAdmin.php` | ✅ | ❌ | Phase 6 |
+| `RecoverStuckInvoices.php` | ❌ | ✅ | Not in architecture doc |
+| `PollNrsConfirmations.php` | ❌ | ✅ | Not in architecture doc |
+
+#### Form Requests (`app/Http/Requests/`)
+
+| Directory / File | Documented | Exists | Notes |
+|---|---|---|---|
+| `Auth/LoginRequest.php` | ✅ | ✅ | |
+| `Auth/RegisterRequest.php` | ✅ | ✅ | |
+| `Invoice/StoreInvoiceRequest.php` | ✅ | ✅ | |
+| `Invoice/UpdateInvoiceRequest.php` | ✅ | ❌ | |
+| `Invoice/ValidateInvoiceOnNrsRequest.php` | ✅ | ❌ | |
+| `Invoice/SignInvoiceOnNrsRequest.php` | ✅ | ❌ | |
+| `Invoice/TransmitInvoiceRequest.php` | ✅ | ❌ | |
+| `Invoice/UpdatePaymentStatusRequest.php` | ✅ | ❌ | |
+| `Invoice/SearchInvoiceRequest.php` | ✅ | ❌ | |
+| `Customer/StoreCustomerRequest.php` | ✅ | ✅ | |
+| `Customer/UpdateCustomerRequest.php` | ✅ | ✅ | |
+| `Product/StoreProductRequest.php` | ✅ | ✅ | |
+| `Product/UpdateProductRequest.php` | ✅ | ✅ | |
+| `Organization/UpdateOrganizationRequest.php` | ✅ | ✅ | |
+| `Organization/InviteMemberRequest.php` | ✅ | ❌ | Team invite uses `Team/AddMemberRequest` instead |
+| `Team/AddMemberRequest.php` | ❌ | ✅ | Not in architecture doc |
+
+#### API Resources (`app/Http/Resources/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `InvoiceResource.php` | ✅ | ✅ | |
+| `InvoiceDetailResource.php` | ✅ | ✅ | |
+| `CustomerResource.php` | ✅ | ✅ | |
+| `ProductResource.php` | ✅ | ✅ | |
+| `DashboardResource.php` | ✅ | ✅ | |
+| `InvoiceLineResource.php` | ✅ | ❌ | |
+| `NrsSubmissionResource.php` | ✅ | ❌ | |
+| `InvoiceTimelineResource.php` | ✅ | ❌ | |
+| `ActivityLogResource.php` | ✅ | ❌ | |
+
 ---
 
-## 13. Development Phases
+### 13.2 Frontend — Implementation Matrix
+
+#### API Modules (`src/api/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `client.ts` | ✅ | ✅ | |
+| `auth.ts` | ✅ | ✅ | |
+| `invoices.ts` | ✅ | ✅ | |
+| `customers.ts` | ✅ | ✅ | |
+| `products.ts` | ✅ | ✅ | |
+| `dashboard.ts` | ✅ | ✅ | |
+| `nrs.ts` | ✅ | ❌ | NRS calls routed through `invoices.ts` |
+| `reports.ts` | ✅ | ✅ | |
+| `activity-logs.ts` | ✅ | ✅ | |
+| `organization.ts` | ✅ | ✅ | |
+| `resources.ts` | ❌ | ✅ | Not in architecture doc |
+| `team.ts` | ❌ | ✅ | Not in architecture doc |
+
+#### Hooks (`src/hooks/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `useAuth.ts` | ✅ | ✅ | Named `use-auth.ts` |
+| `useInvoices.ts` | ✅ | ❌ | |
+| `useInvoiceTimeline.ts` | ✅ | ❌ | |
+| `useInvoiceSubmissions.ts` | ✅ | ❌ | |
+| `useActivityLogs.ts` | ✅ | ❌ | |
+| `useCustomers.ts` | ✅ | ❌ | |
+| `useProducts.ts` | ✅ | ❌ | |
+| `useDashboard.ts` | ✅ | ❌ | |
+| `useNrsResources.ts` | ✅ | ❌ | |
+| `useDebounce.ts` | ✅ | ❌ | |
+| `use-mobile.ts` | ❌ | ✅ | Not in architecture doc |
+| `use-sidebar.tsx` | ❌ | ✅ | Not in architecture doc |
+
+#### Contexts (`src/contexts/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `AuthContext.tsx` | ✅ | ✅ | Also has `AuthContextInstance.ts` |
+| `OrganizationContext.tsx` | ✅ | ❌ | |
+| `ThemeContext.tsx` | ✅ | ❌ | |
+
+#### Pages (`src/pages/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `auth/LoginPage.tsx` | ✅ | ✅ | |
+| `auth/RegisterPage.tsx` | ✅ | ✅ | |
+| `auth/ForgotPasswordPage.tsx` | ✅ | ❌ | |
+| `dashboard/DashboardPage.tsx` | ✅ | ✅ | |
+| `invoices/InvoiceListPage.tsx` | ✅ | ✅ | |
+| `invoices/InvoiceCreatePage.tsx` | ✅ | ✅ | |
+| `invoices/InvoiceEditPage.tsx` | ✅ | ❌ | |
+| `invoices/InvoicePreviewPage.tsx` | ✅ | ❌ | Preview is inline in create flow |
+| `invoices/InvoiceDetailPage.tsx` | ✅ | ✅ | |
+| `customers/CustomerListPage.tsx` | ✅ | ✅ | Located in `customers/` |
+| `customers/CustomerDetailPage.tsx` | ✅ | ❌ | |
+| `products/ProductListPage.tsx` | ✅ | ✅ | Located in `products/` |
+| `reports/ReportsPage.tsx` | ✅ | ❌ | `ReportB2CPage.tsx` exists in `dashboard/` instead |
+| `activity/ActivityLogPage.tsx` | ✅ | ✅ | Located in `dashboard/` |
+| `settings/OrganizationSettingsPage.tsx` | ✅ | ✅ | |
+| `settings/NrsConfigPage.tsx` | ✅ | ❌ | |
+| `settings/TeamMembersPage.tsx` | ✅ | ✅ | Named `TeamManagementPage.tsx` |
+| `settings/ProfilePage.tsx` | ✅ | ❌ | |
+| `admin/*` (5 pages) | ✅ | ❌ | Phase 6 |
+
+#### Components (`src/components/`)
+
+| Directory | Documented | Exists | Notes |
+|---|---|---|---|
+| `ui/` | ✅ | ✅ | shadcn/ui primitives |
+| `errors/` (7 files) | ✅ | ❌ | Error boundaries not created |
+| `layout/` | ✅ | ✅ | `AppLayout`, `AppSidebar`, `AuthLayout`, `PageHeader` |
+| `invoices/` (16+ files) | ✅ | ❌ | Invoice form components not in `components/` — embedded in pages |
+| `invoices/preview/` (8 files) | ✅ | ❌ | Preview components not created |
+| `dashboard/` (4 files) | ✅ | ❌ | Dashboard widgets embedded in `DashboardPage` |
+| `activity/` | ✅ | ❌ | |
+| `customers/` | ✅ | ❌ | |
+| `guards/` | ✅ | ❌ | Phase 6 |
+| `shared/` (6 files) | ✅ | ❌ | |
+| `common/` | ❌ | ✅ | Contains `Logo.tsx` — not in architecture doc |
+
+#### Types (`src/types/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `auth.ts` | ✅ | ✅ | |
+| `invoice.ts` | ✅ | ❌ | Types defined inline in API modules |
+| `customer.ts` | ✅ | ❌ | |
+| `product.ts` | ✅ | ❌ | |
+| `nrs.ts` | ✅ | ❌ | |
+| `timeline.ts` | ✅ | ❌ | |
+| `activity.ts` | ✅ | ❌ | |
+| `organization.ts` | ✅ | ❌ | |
+| `admin.ts` | ✅ | ❌ | Phase 6 |
+| `api.ts` | ✅ | ❌ | |
+
+#### Lib (`src/lib/`)
+
+| File | Documented | Exists | Notes |
+|---|---|---|---|
+| `utils.ts` | ✅ | ✅ | |
+| `formatters.ts` | ✅ | ❌ | |
+| `validators.ts` | ✅ | ❌ | |
+| `constants.ts` | ✅ | ❌ | |
+
+---
+
+### 13.3 Key Architectural Gaps
+
+```mermaid
+graph LR
+    subgraph "✅ Implemented"
+        A1["Auth + Sanctum"]
+        A2["Organization Scoping"]
+        A3["Invoice CRUD"]
+        A4["NRS Sync Calls"]
+        A5["Submission Logging"]
+        A6["State Machine"]
+        A7["Dashboard + Reports"]
+        A8["Team Management"]
+    end
+
+    subgraph "❌ Not Implemented"
+        B1["Queue-Based NRS Jobs"]
+        B2["Retry + Backoff"]
+        B3["IdempotencyService"]
+        B4["Events + Listeners"]
+        B5["Policies / RBAC"]
+        B6["Error Boundaries"]
+        B7["Super Admin"]
+        B8["Component Library"]
+    end
+
+    A4 -.->|"Should become"| B1
+    B1 --> B2
+    A5 -.->|"Needs"| B3
+    A3 -.->|"Should fire"| B4
+    A8 -.->|"Needs"| B5
+```
+
+| Gap | Impact | Priority |
+|---|---|---|
+| **No queue jobs** | NRS calls block HTTP requests; timeouts cause 500s to users | 🔴 Critical |
+| **No retry/backoff** | Failed NRS calls require manual retry; no automatic recovery | 🔴 Critical |
+| **No IdempotencyService** | Duplicate submissions possible on network retries | 🔴 Critical |
+| **No events/listeners** | Tight coupling — state changes, logging, and submissions are all inline | 🟡 High |
+| **No error boundaries** | Frontend crashes propagate to full-page errors | 🟡 High |
+| **No Policies/RBAC** | Role column exists on pivot but never enforced server-side | 🟢 Medium |
+| **No super admin** | Platform management requires direct DB access | 🟢 Medium |
+| **No component extraction** | Dashboard widgets, invoice form sections embedded in pages — not reusable | 🟢 Medium |
+
+---
+
+## 14. Development Phases
 
 | Phase | Scope | Priority |
 |---|---|---|
@@ -2479,5 +3349,6 @@ class NrsWebhookController extends Controller
 | **Phase 3** | NRS Integration — Validate → Sign → Transmit → Confirm + Idempotency + Retry/backoff + Submission logging | 🔴 Critical |
 | **Phase 4** | Dashboard + analytics + NRS health + Confirmation polling + Activity log page | 🟡 High |
 | **Phase 5** | Invoice download/PDF + Payment status updates + Reports | 🟡 High |
-| **Phase 6** | Team management + RBAC + Organization settings | 🟢 Medium |
+| **Phase 6** | Team management + RBAC + Organization settings + **Super Admin** (platform roles, `is_super_admin` flag, admin panel, cross-org access, `EnsureSuperAdmin` middleware, Artisan promote command) | 🟢 Medium |
 | **Phase 7** | Stuck invoice recovery, webhook endpoint, circuit breaker, error tracking, B2C reporting | 🟢 Medium |
+
