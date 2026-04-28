@@ -2,12 +2,11 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
-use App\Models\Customer;
-use App\Models\Product;
-use App\Models\ActivityLog;
 use App\Enums\InvoiceStatus;
-use Illuminate\Support\Facades\DB;
+use App\Models\ActivityLog;
+use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Product;
 use App\Services\Nrs\NrsClient;
 
 class DashboardService
@@ -23,36 +22,36 @@ class DashboardService
     {
         return [
             'total_invoices' => Invoice::where('organization_id', $organizationId)->count(),
-            'validated'      => Invoice::where('organization_id', $organizationId)
-                                  ->where('status', InvoiceStatus::VALIDATED)
-                                  ->count(),
-            'signed'         => Invoice::where('organization_id', $organizationId)
-                                  ->where('status', InvoiceStatus::SIGNED)
-                                  ->count(),
-            'transmitted'    => Invoice::where('organization_id', $organizationId)
-                                  ->where('status', InvoiceStatus::TRANSMITTED)
-                                  ->count(),
-            'confirmed'      => Invoice::where('organization_id', $organizationId)
-                                  ->where('status', InvoiceStatus::CONFIRMED)
-                                  ->count(),
-            'stuck_pending'  => Invoice::where('organization_id', $organizationId)
-                                  ->whereIn('status', [
-                                      InvoiceStatus::PENDING_VALIDATION,
-                                      InvoiceStatus::PENDING_SIGNING,
-                                      InvoiceStatus::PENDING_TRANSMIT
-                                  ])
-                                  ->where('updated_at', '<', now()->subMinutes(5))
-                                  ->count(),
-            'revenue'        => [
-                'payable_amount_sum'     => Invoice::where('organization_id', $organizationId)
-                                              ->where('status', InvoiceStatus::CONFIRMED)
-                                              ->sum('payable_amount'),
-                'tax_inclusive_amount_sum'=> Invoice::where('organization_id', $organizationId)
-                                              ->where('status', InvoiceStatus::CONFIRMED)
-                                              ->sum('tax_inclusive_amount'),
+            'validated' => Invoice::where('organization_id', $organizationId)
+                ->where('status', InvoiceStatus::VALIDATED)
+                ->count(),
+            'signed' => Invoice::where('organization_id', $organizationId)
+                ->where('status', InvoiceStatus::SIGNED)
+                ->count(),
+            'transmitted' => Invoice::where('organization_id', $organizationId)
+                ->where('status', InvoiceStatus::TRANSMITTED)
+                ->count(),
+            'confirmed' => Invoice::where('organization_id', $organizationId)
+                ->where('status', InvoiceStatus::CONFIRMED)
+                ->count(),
+            'stuck_pending' => Invoice::where('organization_id', $organizationId)
+                ->whereIn('status', [
+                    InvoiceStatus::PENDING_VALIDATION,
+                    InvoiceStatus::PENDING_SIGNING,
+                    InvoiceStatus::PENDING_TRANSMIT,
+                ])
+                ->where('updated_at', '<', now()->subMinutes(5))
+                ->count(),
+            'revenue' => [
+                'payable_amount_sum' => Invoice::where('organization_id', $organizationId)
+                    ->where('status', InvoiceStatus::CONFIRMED)
+                    ->sum('payable_amount'),
+                'tax_inclusive_amount_sum' => Invoice::where('organization_id', $organizationId)
+                    ->where('status', InvoiceStatus::CONFIRMED)
+                    ->sum('tax_inclusive_amount'),
             ],
-            'customers'      => Customer::where('organization_id', $organizationId)->count(),
-            'products'       => Product::where('organization_id', $organizationId)->count(),
+            'customers' => Customer::where('organization_id', $organizationId)->count(),
+            'products' => Product::where('organization_id', $organizationId)->count(),
         ];
     }
 
@@ -78,15 +77,15 @@ class DashboardService
             // Ping a lightweight resource endpoint
             $this->nrsClient->get('invoice/resources/countries');
             $latency = round((microtime(true) - $start) * 1000);
-            
+
             return [
-                'status'  => 'online',
+                'status' => 'online',
                 'latency' => "{$latency}ms",
             ];
         } catch (\Exception $e) {
             return [
                 'status' => 'offline',
-                'error'  => $e->getMessage(),
+                'error' => $e->getMessage(),
             ];
         }
     }

@@ -9,7 +9,7 @@ class ProductService
     public function create(array $data, int $organizationId): Product
     {
         return Product::create(array_merge($data, [
-            'organization_id' => $organizationId
+            'organization_id' => $organizationId,
         ]));
     }
 

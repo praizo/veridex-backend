@@ -2,17 +2,17 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\DTOs\Invoice\CreateInvoiceDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoice\StoreInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
+use App\Services\ActivityLogService;
+use App\Services\InvoicePdfService;
 use App\Services\InvoiceService;
 use App\Services\Nrs\NrsInvoiceService;
-use App\DTOs\Invoice\CreateInvoiceDTO;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use App\Services\InvoicePdfService;
-use App\Services\ActivityLogService;
 
 class InvoiceController extends Controller
 {
@@ -46,13 +46,13 @@ class InvoiceController extends Controller
 
         return response()->json([
             'message' => 'Invoice created successfully.',
-            'data'    => new InvoiceResource($invoice->load([
-                'customer', 
-                'lines', 
-                'organization', 
-                'taxTotals', 
-                'stateTransitions'
-            ]))
+            'data' => new InvoiceResource($invoice->load([
+                'customer',
+                'lines',
+                'organization',
+                'taxTotals',
+                'stateTransitions',
+            ])),
         ], 201);
     }
 
@@ -62,13 +62,13 @@ class InvoiceController extends Controller
     public function show(Invoice $invoice): InvoiceResource
     {
         return new InvoiceResource($invoice->load([
-            'customer', 
+            'customer',
             'organization',
-            'lines', 
-            'taxTotals', 
-            'paymentMeans', 
-            'nrsSubmissions', 
-            'stateTransitions'
+            'lines',
+            'taxTotals',
+            'paymentMeans',
+            'nrsSubmissions',
+            'stateTransitions',
         ]));
     }
 
@@ -78,6 +78,7 @@ class InvoiceController extends Controller
     public function validateOnNrs(Invoice $invoice): InvoiceResource
     {
         $this->nrsService->validate($invoice);
+
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
     }
 
@@ -87,6 +88,7 @@ class InvoiceController extends Controller
     public function signOnNrs(Invoice $invoice): InvoiceResource
     {
         $this->nrsService->sign($invoice);
+
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
     }
 
@@ -96,6 +98,7 @@ class InvoiceController extends Controller
     public function transmitOnNrs(Invoice $invoice): InvoiceResource
     {
         $this->nrsService->transmit($invoice);
+
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
     }
 
@@ -105,6 +108,7 @@ class InvoiceController extends Controller
     public function confirmOnNrs(Invoice $invoice): InvoiceResource
     {
         $this->nrsService->confirm($invoice);
+
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
     }
 
@@ -122,21 +126,21 @@ class InvoiceController extends Controller
     public function updatePaymentStatus(Request $request, Invoice $invoice): JsonResponse
     {
         $validated = $request->validate([
-            'payment_status' => 'required|string|in:PENDING,PAID,PARTIAL,REJECTED'
+            'payment_status' => 'required|string|in:PENDING,PAID,PARTIAL,REJECTED',
         ]);
 
         $invoice->update(['payment_status' => $validated['payment_status']]);
 
         $this->activityLog->log(
-            $request->user(), 
-            'PAYMENT_STATUS_UPDATE', 
-            $invoice, 
+            $request->user(),
+            'PAYMENT_STATUS_UPDATE',
+            $invoice,
             "Marked invoice as {$validated['payment_status']}"
         );
 
         return response()->json([
             'message' => 'Payment status updated.',
-            'status'  => $invoice->payment_status,
+            'status' => $invoice->payment_status,
         ]);
     }
 }

@@ -5,11 +5,6 @@ namespace App\Http\Middleware;
 use Closure;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Illuminate\Database\Eloquent\Builder;
-use App\Models\Organization;
-use App\Models\Invoice;
-use App\Models\Customer;
-use App\Models\Product;
 
 class EnsureOrganizationScope
 {

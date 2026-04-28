@@ -7,21 +7,21 @@ use App\Http\Requests\Invoice\StoreInvoiceRequest;
 final readonly class CreateInvoiceDTO
 {
     /**
-     * @param InvoiceLineDTO[]        $lines
-     * @param TaxTotalDTO[]           $taxTotals
-     * @param AllowanceChargeDTO[]    $allowanceCharges
-     * @param PaymentMeansDTO[]       $paymentMeans
-     * @param DocReferenceDTO[]       $docReferences
+     * @param  InvoiceLineDTO[]  $lines
+     * @param  TaxTotalDTO[]  $taxTotals
+     * @param  AllowanceChargeDTO[]  $allowanceCharges
+     * @param  PaymentMeansDTO[]  $paymentMeans
+     * @param  DocReferenceDTO[]  $docReferences
      */
     public function __construct(
-        public int     $organization_id,
-        public int     $customer_id,
-        public string  $invoice_number,
-        public string  $invoice_type_code,
-        public string  $issue_date,
+        public int $organization_id,
+        public int $customer_id,
+        public string $invoice_number,
+        public string $invoice_type_code,
+        public string $issue_date,
         public ?string $due_date,
         public ?string $issue_time,
-        public string  $document_currency_code,
+        public string $document_currency_code,
         public ?string $tax_currency_code,
         public ?string $payment_status,
         public ?string $note,
@@ -34,66 +34,66 @@ final readonly class CreateInvoiceDTO
         public ?string $delivery_period_end,
         public ?string $payment_terms_note,
         public LegalMonetaryTotalDTO $legal_monetary_total,
-        public array   $lines,
-        public array   $tax_totals = [],
-        public array   $allowance_charges = [],
-        public array   $payment_means = [],
-        public array   $doc_references = [],
-        public int     $created_by = 0,
+        public array $lines,
+        public array $tax_totals = [],
+        public array $allowance_charges = [],
+        public array $payment_means = [],
+        public array $doc_references = [],
+        public int $created_by = 0,
     ) {}
 
     public static function fromRequest(StoreInvoiceRequest $request): self
     {
         $validated = $request->validated();
-        
+
         $legal_monetary_total = new LegalMonetaryTotalDTO(...$validated['legal_monetary_total']);
-        
-        $lines = array_map(fn($line) => new InvoiceLineDTO(
-            line_id:                (string) ($line['line_id'] ?? 1),
-            invoiced_quantity:      (float)  ($line['invoiced_quantity'] ?? 1),
-            line_extension_amount:  (float)  (($line['invoiced_quantity'] ?? 1) * ($line['price_amount'] ?? 0)),
-            item_name:               (string) ($line['item_name'] ?? 'Item'),
-            price_amount:            (float)  ($line['price_amount'] ?? 0),
-            tax_category_id:        (string) ($line['tax_category_id'] ?? 'STANDARD_VAT'),
-            tax_percent:            (float)  ($line['tax_percent'] ?? 7.5),
-            unit_code:              (string) ($line['price_unit'] ?? 'EA'),
-            item_description:       (string) ($line['item_description'] ?? null),
-            hs_code:                (string) ($line['hsn_code'] ?? null),
-            item_category:          (string) ($line['product_category'] ?? null),
-            price_base_quantity:    (float)  ($line['base_quantity'] ?? 1),
+
+        $lines = array_map(fn ($line) => new InvoiceLineDTO(
+            line_id: (string) ($line['line_id'] ?? 1),
+            invoiced_quantity: (float) ($line['invoiced_quantity'] ?? 1),
+            line_extension_amount: (float) (($line['invoiced_quantity'] ?? 1) * ($line['price_amount'] ?? 0)),
+            item_name: (string) ($line['item_name'] ?? 'Item'),
+            price_amount: (float) ($line['price_amount'] ?? 0),
+            tax_category_id: (string) ($line['tax_category_id'] ?? 'STANDARD_VAT'),
+            tax_percent: (float) ($line['tax_percent'] ?? 7.5),
+            unit_code: (string) ($line['price_unit'] ?? 'EA'),
+            item_description: (string) ($line['item_description'] ?? null),
+            hs_code: (string) ($line['hsn_code'] ?? null),
+            item_category: (string) ($line['product_category'] ?? null),
+            price_base_quantity: (float) ($line['base_quantity'] ?? 1),
         ), $validated['lines']);
-        
-        $tax_totals = array_map(fn($tax) => new TaxTotalDTO(
-            tax_amount:      (float)  ($tax['tax_amount'] ?? 0),
+
+        $tax_totals = array_map(fn ($tax) => new TaxTotalDTO(
+            tax_amount: (float) ($tax['tax_amount'] ?? 0),
             tax_category_id: (string) ($tax['tax_category_id'] ?? 'STANDARD_VAT'),
-            tax_percent:     (float)  ($tax['tax_percent'] ?? 7.5),
-            taxable_amount:  (float)  ($tax['taxable_amount'] ?? null),
+            tax_percent: (float) ($tax['tax_percent'] ?? 7.5),
+            taxable_amount: (float) ($tax['taxable_amount'] ?? null),
         ), $validated['tax_totals'] ?? []);
-        
+
         return new self(
-            organization_id:       $request->user()->current_organization_id,
-            customer_id:           $validated['customer_id'],
-            invoice_number:        $validated['invoice_number'],
-            invoice_type_code:      $validated['invoice_type_code'] ?? '380',
-            issue_date:            $validated['issue_date'],
-            due_date:              $validated['due_date'] ?? null,
-            issue_time:            $validated['issue_time'] ?? null,
+            organization_id: $request->user()->current_organization_id,
+            customer_id: $validated['customer_id'],
+            invoice_number: $validated['invoice_number'],
+            invoice_type_code: $validated['invoice_type_code'] ?? '380',
+            issue_date: $validated['issue_date'],
+            due_date: $validated['due_date'] ?? null,
+            issue_time: $validated['issue_time'] ?? null,
             document_currency_code: $validated['document_currency_code'] ?? 'NGN',
-            tax_currency_code:      $validated['tax_currency_code'] ?? null,
-            payment_status:        $validated['payment_status'] ?? 'PENDING',
-            note:                 $validated['note'] ?? null,
-            tax_point_date:         $validated['tax_point_date'] ?? null,
-            accounting_cost:       $validated['accounting_cost'] ?? null,
-            buyer_reference:       $validated['buyer_reference'] ?? null,
-            order_reference:       $validated['order_reference'] ?? null,
-            actual_delivery_date:   $validated['actual_delivery_date'] ?? null,
-            delivery_period_start:  $validated['delivery_period_start'] ?? null,
-            delivery_period_end:    $validated['delivery_period_end'] ?? null,
-            payment_terms_note:     $validated['payment_terms_note'] ?? null,
-            legal_monetary_total:   $legal_monetary_total,
-            lines:                $lines,
-            tax_totals:            $tax_totals,
-            created_by:            $request->user()->id,
+            tax_currency_code: $validated['tax_currency_code'] ?? null,
+            payment_status: $validated['payment_status'] ?? 'PENDING',
+            note: $validated['note'] ?? null,
+            tax_point_date: $validated['tax_point_date'] ?? null,
+            accounting_cost: $validated['accounting_cost'] ?? null,
+            buyer_reference: $validated['buyer_reference'] ?? null,
+            order_reference: $validated['order_reference'] ?? null,
+            actual_delivery_date: $validated['actual_delivery_date'] ?? null,
+            delivery_period_start: $validated['delivery_period_start'] ?? null,
+            delivery_period_end: $validated['delivery_period_end'] ?? null,
+            payment_terms_note: $validated['payment_terms_note'] ?? null,
+            legal_monetary_total: $legal_monetary_total,
+            lines: $lines,
+            tax_totals: $tax_totals,
+            created_by: $request->user()->id,
         );
     }
 

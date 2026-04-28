@@ -27,12 +27,12 @@ class CustomerController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'         => ['required', 'string', 'max:255'],
-            'tin'          => ['required', 'string', 'max:50'],
-            'email'        => ['required', 'email', 'max:255'],
-            'phone'        => ['nullable', 'string', 'max:50'],
-            'address'      => ['nullable', 'string'],
-            'city'         => ['nullable', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'tin' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string'],
+            'city' => ['nullable', 'string'],
             'country_code' => ['nullable', 'string', 'size:2'],
         ]);
 
@@ -40,7 +40,7 @@ class CustomerController extends Controller
 
         return response()->json([
             'message' => 'Customer created successfully.',
-            'data'    => new CustomerResource($customer)
+            'data' => new CustomerResource($customer),
         ], 201);
     }
 

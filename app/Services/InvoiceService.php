@@ -2,22 +2,20 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
-use App\Models\InvoiceLine;
-use App\Models\InvoiceTaxTotal;
-use App\Models\InvoicePaymentMeans;
 use App\DTOs\Invoice\CreateInvoiceDTO;
-use App\Enums\InvoiceStatus;
-use Illuminate\Support\Facades\DB;
-use App\Services\ActivityLogService;
 use App\Enums\ActivityAction;
+use App\Enums\InvoiceStatus;
+use App\Exceptions\NrsApiException;
+use App\Models\Invoice;
+use App\Services\Nrs\NrsResourceService;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
     public function __construct(
         protected ActivityLogService $activityLog,
         protected InvoiceStateService $stateService,
-        protected \App\Services\Nrs\NrsResourceService $resourceService
+        protected NrsResourceService $resourceService
     ) {}
 
     /**
@@ -32,7 +30,7 @@ class InvoiceService
             // 1. Create the root Invoice record
             $invoiceData = $dto->toInvoiceArray();
             $invoiceData['status'] = InvoiceStatus::DRAFT;
-            
+
             $invoice = Invoice::create($invoiceData);
 
             // 2. Create Invoice Lines
@@ -63,7 +61,7 @@ class InvoiceService
             // Log activity
             $this->activityLog->log(
                 auth()->user(),
-                \App\Enums\ActivityAction::INVOICE_CREATED->value,
+                ActivityAction::INVOICE_CREATED->value,
                 $invoice,
                 "Invoice #{$invoice->invoice_number} created as draft."
             );
@@ -78,7 +76,7 @@ class InvoiceService
     protected function validateTaxCompliance(CreateInvoiceDTO $dto): void
     {
         $taxCategories = $this->resourceService->getTaxCategories();
-        
+
         if (empty($taxCategories)) {
             // If the FIRS API is down and cache is empty, we might want to log a warning
             // but usually we should have a fallback or a cached version.
@@ -98,14 +96,14 @@ class InvoiceService
         // Validate each line item's tax
         foreach ($dto->lines as $line) {
             $code = $line->tax_category_id;
-            
-            if (!isset($lookup[$code])) {
-                throw new \App\Exceptions\NrsApiException("Invalid Tax Category ID: {$code}. Please use a valid FIRS category.");
+
+            if (! isset($lookup[$code])) {
+                throw new NrsApiException("Invalid Tax Category ID: {$code}. Please use a valid FIRS category.");
             }
 
             $officialPercent = $lookup[$code];
             if ($officialPercent !== null && abs($line->tax_percent - $officialPercent) > 0.001) {
-                throw new \App\Exceptions\NrsApiException("Tax Rate Mismatch: Category {$code} requires {$officialPercent}%, but {$line->tax_percent}% was provided.");
+                throw new NrsApiException("Tax Rate Mismatch: Category {$code} requires {$officialPercent}%, but {$line->tax_percent}% was provided.");
             }
         }
     }

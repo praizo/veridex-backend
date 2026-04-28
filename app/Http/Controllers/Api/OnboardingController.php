@@ -3,9 +3,9 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
 use App\Services\Nrs\NrsClient;
+use Illuminate\Http\JsonResponse;
+use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -24,7 +24,7 @@ class OnboardingController extends Controller
     public function verifyTin(Request $request): JsonResponse
     {
         $request->validate([
-            'tin' => 'required|string|min:8|max:20'
+            'tin' => 'required|string|min:8|max:20',
         ]);
 
         $tin = $request->tin;
@@ -38,12 +38,12 @@ class OnboardingController extends Controller
         try {
             // Attempt a real check if your FIRS collection had a verify endpoint (placeholder)
             // $response = $this->nrsClient->get("api/v1/taxpayer/verify?tin={$tin}");
-            
+
             if (isset($simulatedData[$tin])) {
                 return response()->json([
                     'success' => true,
                     'is_valid' => true,
-                    'data' => $simulatedData[$tin]
+                    'data' => $simulatedData[$tin],
                 ]);
             }
 
@@ -58,18 +58,19 @@ class OnboardingController extends Controller
                     'data' => [
                         'name' => null, // We don't have the name from the API yet
                         'status' => 'UNVERIFIED',
-                    ]
+                    ],
                 ]);
             }
 
             return response()->json([
                 'success' => false,
                 'is_valid' => false,
-                'message' => 'Invalid TIN format. Please check the number and try again.'
+                'message' => 'Invalid TIN format. Please check the number and try again.',
             ], 422);
 
         } catch (\Exception $e) {
-            Log::error("TIN Verification Error: " . $e->getMessage());
+            Log::error('TIN Verification Error: '.$e->getMessage());
+
             return response()->json(['success' => false, 'message' => 'Verification service temporarily unavailable.'], 500);
         }
     }

@@ -2,7 +2,6 @@
 
 namespace App\Services;
 
-use App\Models\Invoice;
 use App\Models\ActivityLog;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;

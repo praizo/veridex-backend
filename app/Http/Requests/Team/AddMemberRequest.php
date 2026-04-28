@@ -10,7 +10,7 @@ class AddMemberRequest extends FormRequest
     {
         $user = $this->user();
         $orgId = $user->currentOrganizationId();
-        
+
         $role = $user->organizations()
             ->where('organization_id', $orgId)
             ->first()
@@ -24,7 +24,7 @@ class AddMemberRequest extends FormRequest
     {
         return [
             'email' => ['required', 'email', 'exists:users,email'],
-            'role'  => ['required', 'in:admin,editor,viewer'],
+            'role' => ['required', 'in:admin,editor,viewer'],
         ];
     }
 }

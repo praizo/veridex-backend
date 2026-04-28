@@ -2,7 +2,7 @@
 
 namespace App\DTOs\Invoice;
 
-use App\Http\Requests\Invoice\UpdateInvoiceRequest; // To be created if needed, otherwise generic usage
+// To be created if needed, otherwise generic usage
 
 final readonly class UpdateInvoiceDTO
 {

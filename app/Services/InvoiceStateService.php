@@ -2,14 +2,14 @@
 
 namespace App\Services;
 
+use App\Enums\InvoiceStatus;
+use App\Exceptions\InvoiceStateException;
+use App\Mail\InvoiceConfirmedMail;
 use App\Models\Invoice;
 use App\Models\InvoiceStateTransition;
 use App\Models\User;
-use App\Mail\InvoiceConfirmedMail;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Log;
-use App\Exceptions\InvoiceStateException;
-use App\Enums\InvoiceStatus;
+use Illuminate\Support\Facades\Mail;
 
 class InvoiceStateService
 {
@@ -28,19 +28,19 @@ class InvoiceStateService
             return InvoiceStateTransition::where('invoice_id', $invoice->id)
                 ->where('to_status', $toStatus->value)
                 ->latest()
-                ->first() ?? new InvoiceStateTransition();
+                ->first() ?? new InvoiceStateTransition;
         }
 
         $this->validateTransition($fromStatus, $toStatus);
 
         $transition = InvoiceStateTransition::create([
             'invoice_id' => $invoice->id,
-            'user_id'    => $user?->id,
-            'from_status'=> $fromStatus->value,
-            'to_status'  => $toStatus->value,
-            'trigger'    => $trigger,
-            'note'       => $note,
-            'metadata'   => $metadata,
+            'user_id' => $user?->id,
+            'from_status' => $fromStatus->value,
+            'to_status' => $toStatus->value,
+            'trigger' => $trigger,
+            'note' => $note,
+            'metadata' => $metadata,
             'ip_address' => request()->ip(),
         ]);
 
@@ -55,7 +55,7 @@ class InvoiceStateService
                 Mail::to($invoice->customer->email)->send(new InvoiceConfirmedMail($invoice));
                 Log::info("Invoice confirmation email dispatched to: {$invoice->customer->email}");
             } catch (\Exception $e) {
-                Log::error("Failed to send invoice confirmation email: " . $e->getMessage());
+                Log::error('Failed to send invoice confirmation email: '.$e->getMessage());
             }
         }
 
@@ -84,7 +84,7 @@ class InvoiceStateService
 
         $allowedTo = $allowed[$from->value] ?? [];
 
-        if (!in_array($to, $allowedTo)) {
+        if (! in_array($to, $allowedTo)) {
             throw new InvoiceStateException("Cannot transition from '{$from->value}' to '{$to->value}'");
         }
     }

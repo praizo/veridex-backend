@@ -13,8 +13,8 @@ class DashboardResource extends JsonResource
     public function toArray(Request $request): array
     {
         return [
-            'stats'            => $this['stats'],
-            'recent_activity'  => $this['recent_activity'],
+            'stats' => $this['stats'],
+            'recent_activity' => $this['recent_activity'],
         ];
     }
 }

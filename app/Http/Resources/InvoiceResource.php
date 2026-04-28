@@ -17,13 +17,13 @@ class InvoiceResource extends JsonResource
             'payment_status' => $this->payment_status,
             'issue_date' => $this->issue_date?->format('Y-m-d'),
             'due_date' => $this->due_date?->format('Y-m-d'),
-            
+
             // Financials
             'line_extension_amount' => (float) $this->line_extension_amount,
-            'tax_exclusive_amount'  => (float) $this->tax_exclusive_amount,
-            'tax_inclusive_amount'  => (float) $this->tax_inclusive_amount,
-            'payable_amount'        => (float) $this->payable_amount,
-            
+            'tax_exclusive_amount' => (float) $this->tax_exclusive_amount,
+            'tax_inclusive_amount' => (float) $this->tax_inclusive_amount,
+            'payable_amount' => (float) $this->payable_amount,
+
             // Relationships
             'organization' => $this->whenLoaded('organization'),
             'customer' => $this->whenLoaded('customer'),
@@ -31,14 +31,14 @@ class InvoiceResource extends JsonResource
             'tax_totals' => $this->whenLoaded('taxTotals'),
             'payment_means' => $this->whenLoaded('paymentMeans'),
             'nrs_submissions' => $this->whenLoaded('nrsSubmissions'),
-            'state_transitions' => $this->whenLoaded('stateTransitions', function() {
+            'state_transitions' => $this->whenLoaded('stateTransitions', function () {
                 return $this->stateTransitions->sortByDesc('created_at');
             }),
 
-            'qr_code_url' => $this->irn 
-                ? "https://api.qrserver.com/v1/create-qr-code/?size=150x150&data=" . urlencode("https://nrs.firs.gov.ng/verify/" . $this->irn)
+            'qr_code_url' => $this->irn
+                ? 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data='.urlencode('https://nrs.firs.gov.ng/verify/'.$this->irn)
                 : null,
-            
+
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
         ];

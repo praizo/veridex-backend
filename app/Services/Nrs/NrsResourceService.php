@@ -64,20 +64,21 @@ class NrsResourceService
             try {
                 $response = $this->nrsClient->get($endpoint);
                 $body = $response->json();
-                
+
                 // Sandbox structures can be nested: {"data": [...]} OR {"data": {"data": [...]}}
                 $result = $body;
                 if (isset($body['data']) && is_array($body['data'])) {
                     $result = $body['data'];
                 }
-                
+
                 if (isset($result['data']) && is_array($result['data'])) {
                     $result = $result['data'];
                 }
 
                 return is_array($result) ? $result : [];
             } catch (\Exception $e) {
-                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: " . $e->getMessage());
+                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: ".$e->getMessage());
+
                 return [];
             }
         });

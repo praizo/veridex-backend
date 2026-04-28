@@ -2,10 +2,10 @@
 
 namespace App\Console\Commands;
 
-use Illuminate\Console\Command;
-use App\Models\Invoice;
 use App\Enums\InvoiceStatus;
+use App\Models\Invoice;
 use App\Services\Nrs\NrsInvoiceService;
+use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 
 class PollNrsConfirmations extends Command
@@ -36,6 +36,7 @@ class PollNrsConfirmations extends Command
 
         if ($invoices->isEmpty()) {
             $this->info('No transmitted invoices pending confirmation.');
+
             return Command::SUCCESS;
         }
 
@@ -50,8 +51,8 @@ class PollNrsConfirmations extends Command
                 $this->info("Successfully confirmed Invoice ID: {$invoice->id}");
             } catch (\Exception $e) {
                 $failCount++;
-                $this->error("Failed to confirm Invoice ID: {$invoice->id}. Error: " . $e->getMessage());
-                Log::warning("Background Polling failed to confirm invoice.", [
+                $this->error("Failed to confirm Invoice ID: {$invoice->id}. Error: ".$e->getMessage());
+                Log::warning('Background Polling failed to confirm invoice.', [
                     'invoice_id' => $invoice->id,
                     'irn' => $invoice->irn,
                     'error' => $e->getMessage(),
@@ -60,6 +61,7 @@ class PollNrsConfirmations extends Command
         }
 
         $this->info("Polling complete. Success: {$successCount}, Failed: {$failCount}.");
+
         return Command::SUCCESS;
     }
 }

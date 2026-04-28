@@ -17,10 +17,10 @@ class StoreInvoiceRequest extends FormRequest
         return [
             'customer_id' => ['required', 'exists:customers,id'],
             'invoice_number' => [
-                'required', 
-                'string', 
+                'required',
+                'string',
                 'max:255',
-                Rule::unique('invoices')->where('organization_id', $this->user()->current_organization_id)
+                Rule::unique('invoices')->where('organization_id', $this->user()->current_organization_id),
             ],
             'invoice_type_code' => ['required', 'string', 'in:380,381,383,386,396'],
             'issue_date' => ['required', 'date'],
@@ -38,7 +38,7 @@ class StoreInvoiceRequest extends FormRequest
             'delivery_period_start' => ['nullable', 'date'],
             'delivery_period_end' => ['nullable', 'date'],
             'payment_terms_note' => ['nullable', 'string'],
-            
+
             // Legal Monetary Total
             'legal_monetary_total' => ['required', 'array'],
             'legal_monetary_total.line_extension_amount' => ['required', 'numeric'],
@@ -49,7 +49,7 @@ class StoreInvoiceRequest extends FormRequest
             'legal_monetary_total.charge_total_amount' => ['nullable', 'numeric'],
             'legal_monetary_total.prepaid_amount' => ['nullable', 'numeric'],
             'legal_monetary_total.payable_rounding_amount' => ['nullable', 'numeric'],
-            
+
             // Lines
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.line_id' => ['required', 'string'],
@@ -64,7 +64,7 @@ class StoreInvoiceRequest extends FormRequest
             'lines.*.tax_category_id' => ['nullable', 'string'],
             'lines.*.tax_percent' => ['nullable', 'numeric'],
             'lines.*.tax_scheme_id' => ['nullable', 'string'],
-            
+
             // Tax Totals
             'tax_totals' => ['nullable', 'array'],
             'tax_totals.*.tax_amount' => ['required', 'numeric'],
@@ -72,7 +72,7 @@ class StoreInvoiceRequest extends FormRequest
             'tax_totals.*.tax_category_id' => ['nullable', 'string'],
             'tax_totals.*.tax_percent' => ['nullable', 'numeric'],
             'tax_totals.*.tax_scheme_id' => ['nullable', 'string'],
-            
+
             // (Skipping detailed rules for allowanceCharges, paymentMeans, docReferences for brevity in Phase 1)
         ];
     }

@@ -27,12 +27,12 @@ class ProductController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'name'             => ['required', 'string', 'max:255'],
-            'description'      => ['nullable', 'string', 'max:1000'],
-            'sku'              => ['nullable', 'string', 'max:50'],
-            'price'            => ['required', 'numeric', 'min:0'],
-            'unit'             => ['required', 'string', 'max:50'],
-            'hsn_code'         => ['required', 'string'],
+            'name' => ['required', 'string', 'max:255'],
+            'description' => ['nullable', 'string', 'max:1000'],
+            'sku' => ['nullable', 'string', 'max:50'],
+            'price' => ['required', 'numeric', 'min:0'],
+            'unit' => ['required', 'string', 'max:50'],
+            'hsn_code' => ['required', 'string'],
             'product_category' => ['required', 'string'],
         ]);
 
@@ -40,7 +40,7 @@ class ProductController extends Controller
 
         return response()->json([
             'message' => 'Product created successfully.',
-            'data'    => new ProductResource($product)
+            'data' => new ProductResource($product),
         ], 201);
     }
 

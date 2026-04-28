@@ -1,18 +1,18 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\ActivityLogController;
 use App\Http\Controllers\Api\AuthController;
+use App\Http\Controllers\Api\CustomerController;
+use App\Http\Controllers\Api\DashboardController;
+use App\Http\Controllers\Api\InvoiceController;
+use App\Http\Controllers\Api\NrsResourceController;
+use App\Http\Controllers\Api\NrsWebhookController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\OrganizationController;
-use App\Http\Controllers\Api\InvoiceController;
-use App\Http\Controllers\Api\CustomerController;
 use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\ActivityLogController;
-use App\Http\Controllers\Api\NrsResourceController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TeamController;
-use App\Http\Controllers\Api\NrsWebhookController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,7 +38,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
 
     // Organization-Scoped Routes
     Route::middleware('org.scope')->group(function () {
-        
+
         // Dashboard
         Route::get('/dashboard', [DashboardController::class, 'index']);
         Route::get('/dashboard/health', [DashboardController::class, 'health']);
@@ -52,7 +52,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::apiResource('organizations', OrganizationController::class)->only(['index', 'show', 'update']);
         Route::post('organizations/switch', [OrganizationController::class, 'switch']);
         Route::get('organization/current', [OrganizationController::class, 'show']); // Shared alias
-        
+
         Route::apiResource('team/members', TeamController::class)->except(['show']);
 
         // FIRS Resources
@@ -73,7 +73,7 @@ Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
             Route::post('sign', [InvoiceController::class, 'signOnNrs']);
             Route::post('transmit', [InvoiceController::class, 'transmitOnNrs']);
             Route::post('confirm', [InvoiceController::class, 'confirmOnNrs']);
-            
+
             // Phase 5 Additions
             Route::get('download', [InvoiceController::class, 'downloadPdf']);
             Route::patch('payment', [InvoiceController::class, 'updatePaymentStatus']);

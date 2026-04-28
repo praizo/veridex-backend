@@ -5,8 +5,8 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Models\User;
 use App\Models\Organization;
+use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
@@ -25,7 +25,7 @@ class AuthController extends Controller
 
         $org = Organization::create([
             'name' => $validated['organization_name'],
-            'slug' => str()->slug($validated['organization_name']) . '-' . str()->random(5),
+            'slug' => str()->slug($validated['organization_name']).'-'.str()->random(5),
             'email' => $validated['email'],
             'tin' => $validated['tin'],
             'nrs_business_id' => $validated['nrs_business_id'],
@@ -48,7 +48,7 @@ class AuthController extends Controller
 
         $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);

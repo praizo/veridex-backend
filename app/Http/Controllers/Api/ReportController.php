@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
@@ -12,7 +13,7 @@ class ReportController extends Controller
     /**
      * Get summary statistics for B2C invoices.
      */
-    public function b2cSummary(Request $request): \Illuminate\Http\JsonResponse
+    public function b2cSummary(Request $request): JsonResponse
     {
         $orgId = $request->user()->current_organization_id;
 
@@ -35,7 +36,7 @@ class ReportController extends Controller
                 'count' => $summary->sum('total_count'),
                 'amount' => $summary->sum('total_amount'),
                 'vat' => $summary->sum('total_vat'),
-            ]
+            ],
         ]);
     }
 
@@ -77,31 +78,31 @@ class ReportController extends Controller
             }
 
             $query->chunk(100, function ($invoices) use ($handle) {
-                    foreach ($invoices as $invoice) {
-                        $vatTotal = $invoice->tax_inclusive_amount - $invoice->tax_exclusive_amount;
+                foreach ($invoices as $invoice) {
+                    $vatTotal = $invoice->tax_inclusive_amount - $invoice->tax_exclusive_amount;
 
-                        fputcsv($handle, [
-                            $invoice->invoice_number,
-                            $invoice->status,
-                            $invoice->payment_status,
-                            $invoice->irn ?? 'N/A',
-                            $invoice->issue_date->format('Y-m-d'),
-                            $invoice->due_date ? $invoice->due_date->format('Y-m-d') : 'N/A',
-                            $invoice->document_currency_code,
-                            $invoice->customer->name ?? 'N/A',
-                            $invoice->customer->tin ?? 'N/A',
-                            number_format($invoice->tax_exclusive_amount, 2, '.', ''),
-                            number_format($vatTotal, 2, '.', ''),
-                            number_format($invoice->payable_amount, 2, '.', ''),
-                        ]);
-                    }
-                });
+                    fputcsv($handle, [
+                        $invoice->invoice_number,
+                        $invoice->status,
+                        $invoice->payment_status,
+                        $invoice->irn ?? 'N/A',
+                        $invoice->issue_date->format('Y-m-d'),
+                        $invoice->due_date ? $invoice->due_date->format('Y-m-d') : 'N/A',
+                        $invoice->document_currency_code,
+                        $invoice->customer->name ?? 'N/A',
+                        $invoice->customer->tin ?? 'N/A',
+                        number_format($invoice->tax_exclusive_amount, 2, '.', ''),
+                        number_format($vatTotal, 2, '.', ''),
+                        number_format($invoice->payable_amount, 2, '.', ''),
+                    ]);
+                }
+            });
 
             fclose($handle);
         });
 
         $date = now()->format('Y_m_d_His');
-        
+
         $response->headers->set('Content-Type', 'text/csv');
         $response->headers->set('Content-Disposition', 'attachment; filename="invoices_export_'.$date.'.csv"');
 

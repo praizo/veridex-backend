@@ -3,12 +3,13 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
- use Illuminate\Http\JsonResponse;
- 
+use App\Services\Nrs\NrsResourceService;
+use Illuminate\Http\JsonResponse;
+
 class NrsResourceController extends Controller
 {
     public function __construct(
-        protected \App\Services\Nrs\NrsResourceService $resourceService
+        protected NrsResourceService $resourceService
     ) {}
 
     public function hsCodes(): JsonResponse

@@ -19,17 +19,17 @@ class InvoicePdfService
             'customer',
             'lines',
             'taxTotals',
-            'paymentMeans'
+            'paymentMeans',
         ]);
 
         $qrCodeSrc = null;
         if ($invoice->irn) {
             // Generate standard FIRS compliance validation URL
-            $validationUrl = "https://firs.gov.ng/verify?irn=" . $invoice->irn;
-            
+            $validationUrl = 'https://firs.gov.ng/verify?irn='.$invoice->irn;
+
             // Build base64 SVG for the PDF. SVG is better for PDFs and doesn't require Imagick.
             $qrCodeImage = QrCode::format('svg')->size(150)->generate($validationUrl);
-            $qrCodeSrc = 'data:image/svg+xml;base64,' . base64_encode($qrCodeImage);
+            $qrCodeSrc = 'data:image/svg+xml;base64,'.base64_encode($qrCodeImage);
         }
 
         $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'qrCodeSrc'));
