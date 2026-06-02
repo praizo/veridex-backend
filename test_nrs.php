@@ -15,8 +15,12 @@ $invoice = Invoice::latest()->first();
 $client = app(NrsClient::class);
 $builder = app(NrsPayloadBuilder::class);
 $payload = $builder->buildFullInvoicePayload($invoice);
+echo "Payload:\n" . json_encode($payload, JSON_PRETTY_PRINT) . "\n\n";
 
-$response = Http::withHeaders($client->getHeaders())
-    ->post($client->resolveUrl('api/v1/invoice/validate'), $payload);
-
-echo json_encode($response->json(), JSON_PRETTY_PRINT);
+try {
+    // Send Validate Request
+    $response = $client->post('api/v1/invoice/sign', $payload);
+    echo json_encode($response->json(), JSON_PRETTY_PRINT);
+} catch (\Exception $e) {
+    echo "Exception: " . $e->getMessage() . "\n";
+}

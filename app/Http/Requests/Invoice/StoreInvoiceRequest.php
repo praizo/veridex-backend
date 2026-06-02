@@ -64,6 +64,8 @@ class StoreInvoiceRequest extends FormRequest
             'lines.*.tax_category_id' => ['nullable', 'string'],
             'lines.*.tax_percent' => ['nullable', 'numeric'],
             'lines.*.tax_scheme_id' => ['nullable', 'string'],
+            'lines.*.hsn_code' => ['required', 'string'],
+            'lines.*.product_category' => ['required', 'string'],
 
             // Tax Totals
             'tax_totals' => ['nullable', 'array'],

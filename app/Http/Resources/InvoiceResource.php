@@ -35,7 +35,7 @@ class InvoiceResource extends JsonResource
                 return $this->stateTransitions->sortByDesc('created_at');
             }),
 
-            'qr_code_url' => $this->irn
+            'qr_code_url' => $this->irn && in_array($this->status?->value ?? $this->status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'])
                 ? 'https://api.qrserver.com/v1/create-qr-code/?size=150x150&data='.urlencode('https://nrs.firs.gov.ng/verify/'.$this->irn)
                 : null,
 

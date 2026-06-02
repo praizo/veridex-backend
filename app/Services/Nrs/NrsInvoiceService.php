@@ -50,16 +50,22 @@ class NrsInvoiceService
             $result = $this->performAction($invoice, NrsAction::SIGN, 'api/v1/invoice/sign');
             $this->stateService->transition($invoice, InvoiceStatus::SIGNED, request()->user(), 'NRS Signing Succeeded');
             $this->activityLog->log(request()->user(), 'NRS_SIGN', $invoice, "Successfully signed invoice. IRN: {$invoice->irn}");
-
-            // Auto-transmit after successful signing
-            $this->transmit($invoice);
-
-            return $result;
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::SIGN_FAILED, request()->user(), 'NRS Signing Failed', null, ['error' => $e->getMessage()]);
             $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS: '.$e->getMessage());
             throw $e;
         }
+
+        // Auto-transmit after successful signing
+        try {
+            $this->transmit($invoice);
+        } catch (\Throwable $e) {
+            // We just swallow/log the exception here because the sign action itself was successful.
+            // The transmit() method already transitions the state to transmit_failed and logs it.
+            // We don't want to fail the whole sign request just because auto-transmit failed.
+        }
+
+        return $result;
     }
 
     /**

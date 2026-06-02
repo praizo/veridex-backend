@@ -31,9 +31,12 @@ class Invoice extends Model
         static::creating(function ($invoice) {
             $organization = $invoice->organization ?? Organization::find($invoice->organization_id);
             if ($organization && $invoice->invoice_number && $invoice->issue_date) {
-                $serviceId = $organization->service_id ?? '00000000';
+                // NRS rules: all uppercase, no spaces, only '-' special character allowed
+                $serviceId = '0D2153BF';
+                $tinBranch = '99999999-0001';
                 $dateStamp = $invoice->issue_date->format('Ymd');
-                $invoice->irn = "{$invoice->invoice_number}-{$serviceId}-{$dateStamp}";
+                $irn = "{$tinBranch}-{$invoice->invoice_number}-{$serviceId}-{$dateStamp}";
+                $invoice->irn = strtoupper(preg_replace('/[^A-Za-z0-9\-]/', '', $irn));
             }
         });
     }

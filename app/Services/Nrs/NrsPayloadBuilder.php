@@ -18,11 +18,12 @@ class NrsPayloadBuilder
         $customer = $invoice->customer;
 
         $payload = [
-            'business_id' => (string) $organization->tin,
+            'business_id' => (string) $organization->nrs_business_id, // This must be a valid UUID from the NRS platform
             'irn' => $invoice->irn,
             'issue_date' => $invoice->issue_date->format('Y-m-d'),
             'invoice_type_code' => (string) $invoice->invoice_type_code,
             'document_currency_code' => $invoice->document_currency_code,
+            'tax_currency_code' => $invoice->tax_currency_code ?? $invoice->document_currency_code,
 
             'accounting_supplier_party' => $this->buildPartyData($organization),
             'accounting_customer_party' => $this->buildPartyData($customer, true),
@@ -34,9 +35,9 @@ class NrsPayloadBuilder
                 'payable_amount' => (float) $invoice->payable_amount,
             ],
 
-            'invoice_line' => $invoice->lines->map(fn ($line) => [
-                'hsn_code' => $line->hs_code ?? 'CC-001',
-                'product_category' => $line->item_category ?? 'General Items',
+            'invoice_line' => $invoice->lines->map(fn ($line) => array_filter([
+                'hsn_code' => $line->hs_code,
+                'product_category' => $line->item_category,
                 'invoiced_quantity' => (float) $line->invoiced_quantity,
                 'line_extension_amount' => (float) $line->line_extension_amount,
                 'item' => [
@@ -49,10 +50,9 @@ class NrsPayloadBuilder
                     'base_quantity' => (float) ($line->base_quantity ?? 1),
                     'price_unit' => $line->price_unit ?? 'UNIT',
                 ],
-                // These are conditional in the UBL standard
                 'discount_amount' => $line->discount_amount ? (float) $line->discount_amount : null,
                 'fee_amount' => $line->fee_amount ? (float) $line->fee_amount : null,
-            ])->filter()->values()->toArray(),
+            ], fn ($value) => ! is_null($value)))->values()->toArray(),
         ];
 
         // Allowance Charges (Root level)
@@ -108,19 +108,52 @@ class NrsPayloadBuilder
         // For Organizations, $entity is Organization model
         // For Customers, $entity is Customer model
 
-        return [
+        $postalAddress = array_filter([
+            'street_name' => $entity->street_name,
+            'city_name' => $entity->city_name,
+            'postal_zone' => $entity->postal_zone,
+            'country' => $entity->country_code,
+        ], fn ($value) => ! is_null($value) && $value !== '');
+
+        $data = [
             'party_name' => $entity->name,
-            'tin' => $isCustomer ? $entity->tin : ($entity->tin ?? 'TIN-NOT-SET'),
+            'tin' => $entity->tin,
             'email' => $entity->email,
-            'telephone' => $entity->telephone ?? $entity->phone ?? null,
+            'telephone' => $this->formatTelephone($entity->telephone ?? $entity->phone ?? null),
             'business_description' => $entity->business_description ?? null,
-            'postal_address' => [
-                'street_name' => $entity->street_name ?? 'N/A',
-                'city_name' => $entity->city_name ?? 'N/A',
-                'postal_zone' => $entity->postal_zone ?? 'N/A',
-                'country' => $entity->country_code ?? 'NG',
-            ],
         ];
+
+        if (! empty($postalAddress)) {
+            $data['postal_address'] = $postalAddress;
+        }
+
+        return array_filter($data, fn ($value) => ! is_null($value) && $value !== '');
+    }
+
+    /**
+     * Ensure telephone number starts with + and formats local numbers properly.
+     */
+    protected function formatTelephone(?string $phone): ?string
+    {
+        if (empty($phone)) {
+            return null;
+        }
+
+        $phone = trim($phone);
+
+        if (str_starts_with($phone, '+')) {
+            return $phone;
+        }
+
+        if (str_starts_with($phone, '234')) {
+            return '+' . $phone;
+        }
+
+        if (str_starts_with($phone, '0')) {
+            return '+234' . substr($phone, 1);
+        }
+
+        return '+' . $phone;
     }
 
     /**

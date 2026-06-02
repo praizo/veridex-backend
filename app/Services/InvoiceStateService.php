@@ -76,10 +76,10 @@ class InvoiceStateService
             InvoiceStatus::VALIDATION_FAILED->value => [InvoiceStatus::DRAFT, InvoiceStatus::PENDING_VALIDATION],
             InvoiceStatus::PENDING_SIGNING->value => [InvoiceStatus::SIGNED, InvoiceStatus::SIGN_FAILED],
             InvoiceStatus::SIGNED->value => [InvoiceStatus::PENDING_TRANSMIT],
-            InvoiceStatus::SIGN_FAILED->value => [InvoiceStatus::VALIDATED, InvoiceStatus::PENDING_SIGNING],
+            InvoiceStatus::SIGN_FAILED->value => [InvoiceStatus::VALIDATED, InvoiceStatus::PENDING_SIGNING, InvoiceStatus::PENDING_VALIDATION],
             InvoiceStatus::PENDING_TRANSMIT->value => [InvoiceStatus::TRANSMITTED, InvoiceStatus::TRANSMIT_FAILED],
             InvoiceStatus::TRANSMITTED->value => [InvoiceStatus::CONFIRMED],
-            InvoiceStatus::TRANSMIT_FAILED->value => [InvoiceStatus::SIGNED, InvoiceStatus::PENDING_TRANSMIT],
+            InvoiceStatus::TRANSMIT_FAILED->value => [InvoiceStatus::SIGNED, InvoiceStatus::PENDING_TRANSMIT, InvoiceStatus::PENDING_SIGNING, InvoiceStatus::PENDING_VALIDATION],
         ];
 
         $allowedTo = $allowed[$from->value] ?? [];

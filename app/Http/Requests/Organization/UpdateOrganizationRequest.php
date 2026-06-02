@@ -26,6 +26,7 @@ class UpdateOrganizationRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'tin' => ['required', 'string', 'max:50'],
+            'nrs_business_id' => ['nullable', 'string', 'uuid'],
             'email' => ['nullable', 'email', 'max:255'],
             'telephone' => ['nullable', 'string', 'max:50'],
             'street_name' => ['nullable', 'string', 'max:255'],

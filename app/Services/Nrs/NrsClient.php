@@ -71,6 +71,14 @@ class NrsClient
 
             $latency = (microtime(true) - $startTime) * 1000;
 
+            // Log full request and response for NRS IT debugging in a readable format
+            Log::info("========== NRS IT DEBUG LOG ==========", [
+                'ENDPOINT' => "[{$method}] {$url}",
+                'REQUEST_PAYLOAD' => $data,
+                'RESPONSE_STATUS' => $response->status(),
+                'RESPONSE_BODY' => $response->json(),
+            ]);
+
             // 2. Log API Interaction
             $this->logInteraction($method, $endpoint, $data, $response, $latency);
 
@@ -87,6 +95,12 @@ class NrsClient
             $this->handleFailure();
             Log::error("NRS Connection Error: {$e->getMessage()}", ['endpoint' => $endpoint]);
             throw new NrsConnectionException('Unable to connect to NRS API: '.$e->getMessage());
+        } catch (\Illuminate\Http\Client\RequestException $e) {
+            $this->handleFailure();
+            if ($e->response) {
+                $this->handleErrorResponse($e->response, $endpoint);
+            }
+            throw $e;
         } catch (\Exception $e) {
             if (! ($e instanceof NrsApiException)) {
                 $this->handleFailure();
@@ -153,6 +167,11 @@ class NrsClient
         $status = $response->status();
         $body = $response->json();
         $message = $body['message'] ?? 'Unknown NRS API error';
+
+        if (isset($body['error'])) {
+            $errorDetails = is_array($body['error']) ? json_encode($body['error']) : $body['error'];
+            $message .= ' | Details: ' . $errorDetails;
+        }
 
         Log::warning("NRS API Error [{$status}] at {$endpoint}: {$message}", [
             'response' => $body,

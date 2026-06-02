@@ -24,15 +24,16 @@ class OnboardingController extends Controller
     public function verifyTin(Request $request): JsonResponse
     {
         $request->validate([
-            'tin' => 'required|string|min:8|max:20',
+            'tin' => ['required', 'string', 'regex:/^\d{8}-\d{4}$/'],
         ]);
 
         $tin = $request->tin;
 
         // FIRS Sandbox Data Mock (since public lookup often isn't in the collection)
         $simulatedData = [
-            '20484017' => ['name' => 'GMRiteMate Global', 'status' => 'ACTIVE', 'category' => 'MEDIUM'],
+            '20484017-0001' => ['name' => 'GMRiteMate Global', 'status' => 'ACTIVE', 'category' => 'MEDIUM'],
             '18609323-0001' => ['name' => 'Sandbox Trading Ltd', 'status' => 'ACTIVE', 'category' => 'SMALL'],
+            '99999999-0001' => ['name' => 'Veridex Dummy Taxpayer Ltd', 'status' => 'ACTIVE', 'category' => 'MEDIUM'],
         ];
 
         try {
@@ -48,7 +49,7 @@ class OnboardingController extends Controller
             }
 
             // Basic Structural Validation for Nigerian TIN (usually 12 digits or 8 digits)
-            $isFormatValid = preg_match('/^\d{8,12}(-\d{4})?$/', $tin);
+            $isFormatValid = preg_match('/^\d{8}-\d{4}$/', $tin);
 
             if ($isFormatValid) {
                 return response()->json([
