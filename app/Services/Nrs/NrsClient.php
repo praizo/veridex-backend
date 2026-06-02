@@ -1,11 +1,15 @@
 <?php
 
+declare(strict_types=1);
+
 namespace App\Services\Nrs;
 
 use App\Exceptions\NrsApiException;
 use App\Exceptions\NrsConnectionException;
 use App\Models\NrsApiLog;
+use Exception;
 use Illuminate\Http\Client\ConnectionException;
+use Illuminate\Http\Client\RequestException;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
@@ -95,14 +99,14 @@ class NrsClient
             $this->handleFailure();
             Log::error('NRS Connection Error: '.$e->getMessage(), ['endpoint' => $endpoint]);
             throw new NrsConnectionException('Unable to connect to NRS API: '.$e->getMessage());
-        } catch (\Illuminate\Http\Client\RequestException $e) {
+        } catch (RequestException $e) {
             $this->handleFailure();
             if ($e->response) {
                 $this->handleErrorResponse($e->response, $endpoint);
             }
             throw $e;
-        } catch (\Exception $e) {
-            if (! ($e instanceof NrsApiException)) {
+        } catch (Exception $e) {
+            if (!($e instanceof NrsApiException)) {
                 $this->handleFailure();
                 Log::error('NRS Unexpected Error: '.$e->getMessage(), ['endpoint' => $endpoint]);
             }
@@ -124,7 +128,7 @@ class NrsClient
                 'latency_ms' => $latency,
                 'ip_address' => Request::ip(),
             ]);
-        } catch (\Exception $e) {
+        } catch (Exception $e) {
             Log::error('Failed to log NRS API interaction: '.$e->getMessage());
         }
     }

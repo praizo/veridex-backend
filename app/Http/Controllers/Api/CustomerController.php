@@ -63,6 +63,7 @@ class CustomerController extends Controller
         if ($customer->organization_id !== request()->user()->current_organization_id) {
             return response()->json(['message' => 'Unauthorized access to customer'], 403);
         }
+
         return new CustomerResource($customer);
     }
 

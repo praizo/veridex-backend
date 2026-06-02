@@ -22,5 +22,3 @@ class CustomerResource extends JsonResource
         ];
     }
 }
-
-// I'll also create ProductResource in the same turn for speed, but separate file is better.
