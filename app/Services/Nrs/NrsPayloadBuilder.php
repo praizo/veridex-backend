@@ -146,14 +146,14 @@ class NrsPayloadBuilder
         }
 
         if (str_starts_with($phone, '234')) {
-            return '+' . $phone;
+            return '+'.$phone;
         }
 
         if (str_starts_with($phone, '0')) {
-            return '+234' . substr($phone, 1);
+            return '+234'.substr($phone, 1);
         }
 
-        return '+' . $phone;
+        return '+'.$phone;
     }
 
     /**

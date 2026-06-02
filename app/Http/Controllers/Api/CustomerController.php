@@ -13,7 +13,9 @@ class CustomerController extends Controller
 {
     public function __construct(
         protected CustomerService $customerService
-    ) {}
+    ) {
+        //
+    }
 
     public function index(Request $request): JsonResponse
     {
