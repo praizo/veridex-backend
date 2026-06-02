@@ -65,6 +65,7 @@ class NrsResourceService
                 $response = $this->nrsClient->get($endpoint);
                 $body = $response->json();
 
+                // Sandbox structures can be nested: {"data": [...]} OR {"data": {"data": [...]}}
                 $result = $body;
                 if (isset($body['data']) && is_array($body['data'])) {
                     $result = $body['data'];
