@@ -106,7 +106,7 @@ class NrsClient
             }
             throw $e;
         } catch (Exception $e) {
-            if (!($e instanceof NrsApiException)) {
+            if (! ($e instanceof NrsApiException)) {
                 $this->handleFailure();
                 Log::error('NRS Unexpected Error: '.$e->getMessage(), ['endpoint' => $endpoint]);
             }
