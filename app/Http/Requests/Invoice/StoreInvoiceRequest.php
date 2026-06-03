@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Invoice;
 
+use App\Models\Customer;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -15,7 +16,7 @@ class StoreInvoiceRequest extends FormRequest
     protected function prepareForValidation()
     {
         if ($this->has('customer_id') && is_string($this->customer_id)) {
-            $customer = \App\Models\Customer::where('uuid', $this->customer_id)->first();
+            $customer = Customer::where('uuid', $this->customer_id)->first();
             if ($customer) {
                 $this->merge(['customer_id' => $customer->id]);
             }

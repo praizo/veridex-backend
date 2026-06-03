@@ -14,7 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasApiTokens, HasFactory, Notifiable, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+    use HasApiTokens, HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids, Notifiable;
 
     public function uniqueIds(): array
     {

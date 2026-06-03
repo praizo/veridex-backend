@@ -10,6 +10,7 @@ class InvoiceDetailResource extends JsonResource
     {
         $data = parent::toArray($request);
         $data['id'] = $this->uuid;
+
         return $data;
     }
 }
