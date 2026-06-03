@@ -8,6 +8,8 @@ class InvoiceDetailResource extends JsonResource
 {
     public function toArray($request): array
     {
-        return parent::toArray($request); // Scaffold complete dump for details in Phase 1
+        $data = parent::toArray($request);
+        $data['id'] = $this->uuid;
+        return $data;
     }
 }

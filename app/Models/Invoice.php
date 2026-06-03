@@ -11,7 +11,17 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasFactory;
+    use HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+
+    public function uniqueIds(): array
+    {
+        return ['uuid'];
+    }
+
+    public function getRouteKeyName(): string
+    {
+        return 'uuid';
+    }
 
     protected $guarded = ['id'];
 
@@ -96,7 +106,7 @@ class Invoice extends Model
      */
     public function resolveRouteBinding($value, $field = null)
     {
-        return $this->where($field ?? 'id', $value)
+        return $this->where($field ?? 'uuid', $value)
             ->where('organization_id', auth()->user()->current_organization_id)
             ->firstOrFail();
     }

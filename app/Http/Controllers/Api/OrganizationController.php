@@ -33,6 +33,13 @@ class OrganizationController extends Controller
 
     public function switch(Request $request): JsonResponse
     {
+        if ($request->has('organization_id') && is_string($request->organization_id)) {
+            $org = Organization::where('uuid', $request->organization_id)->first();
+            if ($org) {
+                $request->merge(['organization_id' => $org->id]);
+            }
+        }
+
         $request->validate([
             'organization_id' => ['required', 'exists:organizations,id'],
         ]);

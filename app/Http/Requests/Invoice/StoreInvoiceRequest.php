@@ -12,6 +12,16 @@ class StoreInvoiceRequest extends FormRequest
         return true; // We use policies typically, but returning true for now
     }
 
+    protected function prepareForValidation()
+    {
+        if ($this->has('customer_id') && is_string($this->customer_id)) {
+            $customer = \App\Models\Customer::where('uuid', $this->customer_id)->first();
+            if ($customer) {
+                $this->merge(['customer_id' => $customer->id]);
+            }
+        }
+    }
+
     public function rules(): array
     {
         return [
