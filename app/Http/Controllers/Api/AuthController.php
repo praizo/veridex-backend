@@ -29,6 +29,12 @@ class AuthController extends Controller
             'email' => $validated['email'],
             'tin' => $validated['tin'],
             'nrs_business_id' => $validated['nrs_business_id'],
+            'service_id' => $validated['service_id'],
+            'telephone' => $validated['telephone'],
+            'street_name' => $validated['street_name'],
+            'city_name' => $validated['city_name'],
+            'postal_zone' => $validated['postal_zone'],
+            'country_code' => $validated['country_code'],
         ]);
 
         $user->organizations()->attach($org->id, ['role' => 'owner']);

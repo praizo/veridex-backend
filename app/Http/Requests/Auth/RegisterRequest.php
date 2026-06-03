@@ -20,6 +20,12 @@ class RegisterRequest extends FormRequest
             'organization_name' => ['required', 'string', 'max:255'],
             'tin' => ['required', 'string', 'max:20'],
             'nrs_business_id' => ['required', 'string'], // Usually a UUID from FIRS
+            'service_id' => ['required', 'string', 'size:8'],
+            'telephone' => ['required', 'string', 'max:50'],
+            'street_name' => ['required', 'string', 'max:255'],
+            'city_name' => ['required', 'string', 'max:255'],
+            'postal_zone' => ['required', 'string', 'max:20'],
+            'country_code' => ['required', 'string', 'size:2'],
         ];
     }
 }

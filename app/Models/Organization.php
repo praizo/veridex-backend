@@ -33,6 +33,7 @@ class Organization extends Model
         'postal_zone',
         'country_code',
         'business_description',
+        'service_id',
     ];
 
     public function users(): BelongsToMany
