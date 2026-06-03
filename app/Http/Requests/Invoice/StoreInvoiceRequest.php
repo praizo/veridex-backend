@@ -35,7 +35,7 @@ class StoreInvoiceRequest extends FormRequest
             ],
             'invoice_type_code' => ['required', 'string', 'in:380,381,383,386,396'],
             'issue_date' => ['required', 'date'],
-            'due_date' => ['nullable', 'date'],
+            'due_date' => ['nullable', 'date', 'after_or_equal:issue_date'],
             'issue_time' => ['nullable', 'string'], // Time format
             'document_currency_code' => ['required', 'string', 'size:3'],
             'tax_currency_code' => ['nullable', 'string', 'size:3'],

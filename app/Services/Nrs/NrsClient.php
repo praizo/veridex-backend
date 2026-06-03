@@ -102,6 +102,12 @@ class NrsClient
         } catch (RequestException $e) {
             $this->handleFailure();
             if ($e->response) {
+                Log::info('========== NRS IT DEBUG LOG ==========', [
+                    'ENDPOINT' => '['.$method.'] '.$url,
+                    'REQUEST_PAYLOAD' => $data,
+                    'RESPONSE_STATUS' => $e->response->status(),
+                    'RESPONSE_BODY' => $e->response->json(),
+                ]);
                 $this->handleErrorResponse($e->response, $endpoint);
             }
             throw $e;

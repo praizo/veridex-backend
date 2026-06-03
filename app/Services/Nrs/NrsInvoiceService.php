@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\NrsSubmission;
 use App\Services\ActivityLogService;
 use App\Services\InvoiceStateService;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 class NrsInvoiceService
@@ -63,6 +64,7 @@ class NrsInvoiceService
             // We just swallow/log the exception here because the sign action itself was successful.
             // The transmit() method already transitions the state to transmit_failed and logs it.
             // We don't want to fail the whole sign request just because auto-transmit failed.
+            Log::error('Auto-transmit failed during sign: '.$e->getMessage());
         }
 
         return $result;
