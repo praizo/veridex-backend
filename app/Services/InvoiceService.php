@@ -58,7 +58,7 @@ class InvoiceService
                 $invoice->docReferences()->create($docDto->toArray());
             }
 
-            // Log activity
+            // Log activity status
             $this->activityLog->log(
                 auth()->user(),
                 ActivityAction::INVOICE_CREATED->value,
