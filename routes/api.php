@@ -25,17 +25,26 @@ Route::prefix('v1')->group(function () {
     Route::middleware('throttle:5,1')->group(function () {
         Route::post('/register', [AuthController::class, 'register']);
         Route::post('/login', [AuthController::class, 'login']);
+        Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
+        Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
     });
 
     Route::middleware('throttle:30,1')->group(function () {
         Route::get('/onboarding/verify-tin', [OnboardingController::class, 'verifyTin']);
-        Route::post('/webhooks/nrs', [NrsWebhookController::class, 'handle']);
+    });
+
+    // NRS/APP Webhook — public, secured by signature verification middleware
+    Route::middleware(['throttle:30,1', 'verify.nrs.webhook'])->group(function () {
+        Route::post('/invoice/webhook', [NrsWebhookController::class, 'handle']);
     });
 
     // Protected Routes
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
+
+        // Onboarding
+        Route::post('/onboarding/complete', [OnboardingController::class, 'completeOnboarding']);
 
         // Organization-Scoped Routes
         Route::middleware('org.scope')->group(function () {

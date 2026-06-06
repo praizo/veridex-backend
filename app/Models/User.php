@@ -36,6 +36,7 @@ class User extends Authenticatable
         'email',
         'password',
         'current_organization_id',
+        'onboarding_completed_at',
     ];
 
     /**
@@ -58,7 +59,13 @@ class User extends Authenticatable
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'onboarding_completed_at' => 'datetime',
         ];
+    }
+
+    public function hasCompletedOnboarding(): bool
+    {
+        return $this->onboarding_completed_at !== null;
     }
 
     public function organizations(): BelongsToMany

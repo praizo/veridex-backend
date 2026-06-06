@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\OnboardingRequest;
+use App\Models\Organization;
 use App\Services\Nrs\NrsClient;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -16,6 +18,48 @@ class OnboardingController extends Controller
     public function __construct(
         protected NrsClient $nrsClient
     ) {}
+
+    /**
+     * Complete business onboarding — creates Organization and stamps the user.
+     */
+    public function completeOnboarding(OnboardingRequest $request): JsonResponse
+    {
+        $user = $request->user();
+
+        if ($user->hasCompletedOnboarding()) {
+            return response()->json([
+                'message' => 'Onboarding already completed.',
+                'user' => $user->load('currentOrganization'),
+            ]);
+        }
+
+        $validated = $request->validated();
+
+        $org = Organization::create([
+            'name' => $validated['organization_name'],
+            'slug' => str()->slug($validated['organization_name']).'-'.str()->random(5),
+            'email' => $user->email,
+            'tin' => $validated['tin'],
+            'nrs_business_id' => $validated['nrs_business_id'],
+            'service_id' => $validated['service_id'],
+            'telephone' => $validated['telephone'],
+            'street_name' => $validated['street_name'],
+            'city_name' => $validated['city_name'],
+            'postal_zone' => $validated['postal_zone'],
+            'country_code' => $validated['country_code'],
+        ]);
+
+        $user->organizations()->attach($org->id, ['role' => 'owner']);
+        $user->update([
+            'current_organization_id' => $org->id,
+            'onboarding_completed_at' => now(),
+        ]);
+
+        return response()->json([
+            'message' => 'Onboarding completed successfully.',
+            'user' => $user->fresh()->load('currentOrganization'),
+        ], 201);
+    }
 
     /**
      * Verify a TIN and retrieve company metadata.
@@ -76,3 +120,4 @@ class OnboardingController extends Controller
         }
     }
 }
+

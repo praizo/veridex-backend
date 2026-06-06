@@ -11,6 +11,10 @@ class EnsureOrganizationScope
     public function handle(Request $request, Closure $next): Response
     {
         if ($user = $request->user()) {
+            if (! $user->hasCompletedOnboarding()) {
+                return response()->json(['message' => 'Onboarding not completed. Please set up your business first.'], 403);
+            }
+
             if ($orgId = $user->currentOrganizationId()) {
                 // Add global scopes to Models using standard macros or just rely on traits
                 // For simplicity in Phase 1, we will apply this mainly at the controller level
@@ -24,3 +28,4 @@ class EnsureOrganizationScope
         return $next($request);
     }
 }
+

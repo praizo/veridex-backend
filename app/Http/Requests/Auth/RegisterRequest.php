@@ -3,6 +3,7 @@
 namespace App\Http\Requests\Auth;
 
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rules\Password;
 
 class RegisterRequest extends FormRequest
 {
@@ -16,16 +17,7 @@ class RegisterRequest extends FormRequest
         return [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'string', 'email', 'max:255', 'unique:users'],
-            'password' => ['required', 'string', 'min:8', 'confirmed'],
-            'organization_name' => ['required', 'string', 'max:255'],
-            'tin' => ['required', 'string', 'max:20'],
-            'nrs_business_id' => ['required', 'string'], // Usually a UUID from FIRS
-            'service_id' => ['required', 'string', 'size:8'],
-            'telephone' => ['required', 'string', 'max:50'],
-            'street_name' => ['required', 'string', 'max:255'],
-            'city_name' => ['required', 'string', 'max:255'],
-            'postal_zone' => ['required', 'string', 'max:20'],
-            'country_code' => ['required', 'string', 'size:2'],
+            'password' => ['required', 'string', Password::min(8)->letters()->mixedCase()->numbers()->symbols(), 'confirmed'],
         ];
     }
 }
