@@ -23,6 +23,43 @@ class NrsInvoiceService
     ) {}
 
     /**
+     * Self Health Check — Confirms APP setup and readiness for transmission.
+     * Should be called before attempting to transmit invoices.
+     */
+    public function selfHealthCheck(): array
+    {
+        try {
+            $response = $this->client->get('api/v1/invoice/transmit/self-health-check');
+            $responseData = $response->json();
+
+            Log::info('NRS Self Health Check Result', $responseData);
+
+            return $responseData;
+        } catch (\Throwable $e) {
+            Log::error('NRS Self Health Check Failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
+     * Lookup IRN — Retrieves details about the invoice and the involved parties.
+     */
+    public function lookupIrn(string $irn): array
+    {
+        try {
+            $response = $this->client->get("api/v1/invoice/transmit/lookup/{$irn}");
+            $responseData = $response->json();
+
+            Log::info('NRS Lookup IRN Result', ['irn' => $irn, 'response' => $responseData]);
+
+            return $responseData;
+        } catch (\Throwable $e) {
+            Log::error('NRS Lookup IRN Failed: ' . $e->getMessage());
+            throw $e;
+        }
+    }
+
+    /**
      * Step 1: Validate the invoice data on NRS.
      */
     public function validate(Invoice $invoice): array
@@ -36,7 +73,7 @@ class NrsInvoiceService
             return $result;
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::VALIDATION_FAILED, request()->user(), 'NRS Validation Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_VALIDATE_FAIL', $invoice, 'Failed to validate invoice on NRS: '.$e->getMessage());
+            $this->activityLog->log(request()->user(), 'NRS_VALIDATE_FAIL', $invoice, 'Failed to validate invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -53,7 +90,7 @@ class NrsInvoiceService
             $this->activityLog->log(request()->user(), 'NRS_SIGN', $invoice, "Successfully signed invoice. IRN: {$invoice->irn}");
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::SIGN_FAILED, request()->user(), 'NRS Signing Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS: '.$e->getMessage());
+            $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
             throw $e;
         }
 
@@ -88,13 +125,74 @@ class NrsInvoiceService
             return $result;
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::TRANSMIT_FAILED, request()->user(), 'NRS Transmit Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_TRANSMIT_FAIL', $invoice, 'Failed to transmit invoice on NRS: '.$e->getMessage());
+            $this->activityLog->log(request()->user(), 'NRS_TRANSMIT_FAIL', $invoice, 'Failed to transmit invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
 
     /**
-     * Step 4: Confirm the invoice receipt.
+     * Update payment status of a signed invoice on NRS.
+     */
+    public function updatePayment(Invoice $invoice, string $status, ?string $reference = null): array
+    {
+        if (! $invoice->irn) {
+            throw new NrsApiException('Cannot update payment status for an invoice without an IRN.');
+        }
+
+        try {
+            $payload = [
+                'payment_status' => strtoupper($status),
+                'reference' => $reference,
+            ];
+
+            $result = $this->performAction(
+                $invoice,
+                NrsAction::UPDATE_PAYMENT,
+                "api/v1/invoice/update/{$invoice->irn}",
+                $payload
+            );
+
+            // Log event/activity
+            $this->activityLog->log(
+                request()->user(),
+                'NRS_PAYMENT_UPDATE',
+                $invoice,
+                "Updated payment status on NRS to {$status}."
+            );
+
+            return $result;
+        } catch (\Throwable $e) {
+            if (str_contains(strtolower($e->getMessage()), 'terminal state')) {
+                Log::warning("NRS Payment Update: Invoice {$invoice->irn} is in a terminal state on NRS. Failing status update.", [
+                    'invoice_id' => $invoice->id,
+                    'status' => $status
+                ]);
+
+                $this->activityLog->log(
+                    request()->user(),
+                    'NRS_PAYMENT_UPDATE_SKIP',
+                    $invoice,
+                    "NRS payment status update skipped: Invoice is in a terminal state on NRS."
+                );
+
+                throw new NrsApiException('Invoice is in a terminal state on NRS and cannot be updated.', 400, $e);
+            }
+
+            Log::error('NRS Payment Update Failed: ' . $e->getMessage());
+            $this->activityLog->log(
+                request()->user(),
+                'NRS_PAYMENT_UPDATE_FAIL',
+                $invoice,
+                "Failed to update payment status on NRS: " . $e->getMessage(),
+                ['raw_error' => $e->getMessage()]
+            );
+            throw $e;
+        }
+    }
+
+    /**
+     * Step 4: Confirm receipt of a transmitted invoice.
+     * Per NRS docs: PATCH /api/v1/invoice/transmit/{IRN}
      */
     public function confirm(Invoice $invoice): array
     {
@@ -103,13 +201,13 @@ class NrsInvoiceService
         }
 
         try {
-            $result = $this->performAction($invoice, NrsAction::CONFIRM, "api/v1/invoice/confirm/{$invoice->irn}");
+            $result = $this->performAction($invoice, NrsAction::CONFIRM, "api/v1/invoice/transmit/{$invoice->irn}");
             $this->stateService->transition($invoice, InvoiceStatus::CONFIRMED, request()->user(), 'NRS Confirm Succeeded');
             $this->activityLog->log(request()->user(), 'NRS_CONFIRM', $invoice, 'Successfully confirmed invoice on NRS.');
 
             return $result;
         } catch (\Exception $e) {
-            $this->activityLog->log(request()->user(), 'NRS_CONFIRM_FAIL', $invoice, 'Failed to confirm invoice on NRS: '.$e->getMessage());
+            $this->activityLog->log(request()->user(), 'NRS_CONFIRM_FAIL', $invoice, 'Failed to confirm invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -117,7 +215,7 @@ class NrsInvoiceService
     /**
      * Helper to perform NRS actions with submission tracking.
      */
-    protected function performAction(Invoice $invoice, NrsAction $action, string $endpoint): array
+    protected function performAction(Invoice $invoice, NrsAction $action, string $endpoint, ?array $customPayload = null): array
     {
         $organization = $invoice->organization;
 
@@ -130,7 +228,7 @@ class NrsInvoiceService
         }
 
         $idempotencyKey = (string) Str::uuid();
-        $payload = in_array($action, [NrsAction::TRANSMIT, NrsAction::CONFIRM]) ? [] : $this->payloadBuilder->buildFullInvoicePayload($invoice);
+        $payload = $customPayload ?? (in_array($action, [NrsAction::TRANSMIT, NrsAction::CONFIRM]) ? [] : $this->payloadBuilder->buildFullInvoicePayload($invoice));
 
         // Record the attempt
         $submission = NrsSubmission::create([
@@ -147,7 +245,8 @@ class NrsInvoiceService
         try {
             $response = match ($action) {
                 NrsAction::TRANSMIT => $this->client->post($endpoint, [], $headers),
-                NrsAction::CONFIRM => $this->client->get($endpoint, [], $headers),
+                NrsAction::CONFIRM => $this->client->patch($endpoint, [], $headers),
+                NrsAction::UPDATE_PAYMENT => $this->client->patch($endpoint, $payload, $headers),
                 default => $this->client->post($endpoint, $payload, $headers),
             };
 

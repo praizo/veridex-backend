@@ -40,6 +40,14 @@ class NrsResourceService
     }
 
     /**
+     * Get all valid VAT Exemptions.
+     */
+    public function getVatExemptions(): array
+    {
+        return $this->fetch('api/v1/invoice/resources/vat-exemptions', 'nrs_vat_exemptions');
+    }
+
+    /**
      * Get all valid Payment Means.
      */
     public function getPaymentMeans(): array
@@ -53,6 +61,38 @@ class NrsResourceService
     public function getHsCodes(): array
     {
         return $this->fetch('api/v1/invoice/resources/hs-codes', 'nrs_hs_codes');
+    }
+
+    /**
+     * Get all valid Countries.
+     */
+    public function getCountries(): array
+    {
+        return $this->fetch('api/v1/invoice/resources/countries', 'nrs_countries');
+    }
+
+    /**
+     * Get all valid LGAs.
+     */
+    public function getLgas(): array
+    {
+        return $this->fetch('api/v1/invoice/resources/lgas', 'nrs_lgas');
+    }
+
+    /**
+     * Get all valid States.
+     */
+    public function getStates(): array
+    {
+        return $this->fetch('api/v1/invoice/resources/states', 'nrs_states');
+    }
+
+    /**
+     * Get all valid Service Codes.
+     */
+    public function getServiceCodes(): array
+    {
+        return $this->fetch('api/v1/invoice/resources/services-codes', 'nrs_service_codes');
     }
 
     /**
@@ -77,7 +117,7 @@ class NrsResourceService
 
                 return is_array($result) ? $result : [];
             } catch (\Exception $e) {
-                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: ".$e->getMessage());
+                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: " . $e->getMessage());
 
                 return [];
             }

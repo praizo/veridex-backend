@@ -73,6 +73,10 @@ Route::prefix('v1')->group(function () {
                 Route::get('invoice-types', [NrsResourceController::class, 'invoiceTypes']);
                 Route::get('payment-means', [NrsResourceController::class, 'paymentMeans']);
                 Route::get('service-codes', [NrsResourceController::class, 'serviceCodes']);
+                Route::get('services-codes', [NrsResourceController::class, 'serviceCodes']);
+                Route::get('countries', [NrsResourceController::class, 'countries']);
+                Route::get('lgas', [NrsResourceController::class, 'lgas']);
+                Route::get('states', [NrsResourceController::class, 'states']);
                 Route::get('vat-exemptions', [NrsResourceController::class, 'vatExemptions']);
             });
 
@@ -84,10 +88,16 @@ Route::prefix('v1')->group(function () {
                 Route::post('transmit', [InvoiceController::class, 'transmitOnNrs']);
                 Route::post('confirm', [InvoiceController::class, 'confirmOnNrs']);
 
+                // Exchange diagnostics
+                Route::get('lookup', [InvoiceController::class, 'lookupIrn']);
+
                 // Phase 5 Additions
                 Route::get('download', [InvoiceController::class, 'downloadPdf']);
                 Route::patch('payment', [InvoiceController::class, 'updatePaymentStatus']);
             });
+
+            // NRS Exchange: Self Health Check (not invoice-specific)
+            Route::get('/nrs/health-check', [InvoiceController::class, 'selfHealthCheck']);
 
             // Customers
             Route::apiResource('customers', CustomerController::class);

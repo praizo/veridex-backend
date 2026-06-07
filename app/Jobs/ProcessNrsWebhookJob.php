@@ -33,19 +33,18 @@ class ProcessNrsWebhookJob implements ShouldQueue
 
     public function handle(InvoiceStateService $stateService): void
     {
-        $event = $this->payload['event'] ?? null;
+        $message = strtoupper(trim($this->payload['message'] ?? ''));
         $irn = $this->payload['irn'] ?? null;
-        $data = $this->payload['data'] ?? [];
-        $timestamp = $this->payload['timestamp'] ?? now()->toIso8601String();
 
-        if (! $event || ! $irn) {
-            Log::warning('NRS Webhook Job: Missing event or IRN in payload', $this->payload);
+        if (! $message || ! $irn) {
+            Log::warning('NRS Webhook Job: Missing message or IRN in payload', $this->payload);
 
             return;
         }
 
         // --- Idempotency Check ---
-        $idempotencyKey = "webhook_{$event}_{$irn}_{$timestamp}";
+        // Use message + irn as the key; NRS sends stateless, event-driven notifications
+        $idempotencyKey = "webhook_{$message}_{$irn}";
 
         $exists = NrsSubmission::where('idempotency_key', $idempotencyKey)->exists();
         if ($exists) {
@@ -63,20 +62,23 @@ class ProcessNrsWebhookJob implements ShouldQueue
             return;
         }
 
-        // --- Map APP Event to InvoiceStatus ---
+        // --- Map NRS message status to InvoiceStatus ---
+        // From NRS docs, the "message" field values are:
+        //   TRANSMITTING  → Invoice is being sent to the receiver's APP
+        //   ACKNOWLEDGED  → The receiver's APP has acknowledged receipt
+        //   TRANSMITTED   → All parties have confirmed; transmission complete
+        //   FAILED        → Transmission failed (APP unreachable, etc.)
         $statusMap = [
-            'invoice.acknowledged' => InvoiceStatus::TRANSMITTED,
-            'invoice.transmitted' => InvoiceStatus::CONFIRMED,
-            'invoice.failed' => InvoiceStatus::TRANSMIT_FAILED,
-            // Aliases — the APP may use different naming conventions
-            'invoice.confirmed' => InvoiceStatus::CONFIRMED,
-            'invoice.rejected' => InvoiceStatus::TRANSMIT_FAILED,
+            'TRANSMITTING'  => InvoiceStatus::PENDING_TRANSMIT,
+            'ACKNOWLEDGED'  => InvoiceStatus::TRANSMITTED,
+            'TRANSMITTED'   => InvoiceStatus::CONFIRMED,
+            'FAILED'        => InvoiceStatus::TRANSMIT_FAILED,
         ];
 
-        $targetStatus = $statusMap[$event] ?? null;
+        $targetStatus = $statusMap[$message] ?? null;
 
         if (! $targetStatus) {
-            Log::warning("NRS Webhook Job: Unknown event type [{$event}] for IRN: {$irn}");
+            Log::warning("NRS Webhook Job: Unknown message status [{$message}] for IRN: {$irn}");
 
             // Still record it so we have a trail
             NrsSubmission::create([
@@ -86,7 +88,7 @@ class ProcessNrsWebhookJob implements ShouldQueue
                 'action' => 'webhook_unknown',
                 'status' => 'failed',
                 'request_payload' => $this->payload,
-                'error_message' => "Unknown webhook event: {$event}",
+                'error_message' => "Unknown webhook message status: {$message}",
                 'submitted_at' => now(),
                 'responded_at' => now(),
             ]);
@@ -96,7 +98,7 @@ class ProcessNrsWebhookJob implements ShouldQueue
 
         // --- Transition the Invoice State ---
         try {
-            $note = $data['message'] ?? "Status update via NRS webhook: {$event}";
+            $note = "NRS transmission status: {$message}";
 
             $stateService->transition(
                 invoice: $invoice,
@@ -120,9 +122,9 @@ class ProcessNrsWebhookJob implements ShouldQueue
                 'responded_at' => now(),
             ]);
 
-            Log::info("NRS Webhook Job: Invoice [{$irn}] transitioned to [{$targetStatus->value}] via event [{$event}]");
+            Log::info("NRS Webhook Job: Invoice [{$irn}] transitioned to [{$targetStatus->value}] via message [{$message}]");
         } catch (\Exception $e) {
-            Log::error("NRS Webhook Job: Failed to process event [{$event}] for IRN [{$irn}]: {$e->getMessage()}");
+            Log::error("NRS Webhook Job: Failed to process message [{$message}] for IRN [{$irn}]: {$e->getMessage()}");
 
             NrsSubmission::create([
                 'invoice_id' => $invoice->id,

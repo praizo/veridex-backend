@@ -40,6 +40,7 @@ final readonly class CreateInvoiceDTO
         public array $payment_means = [],
         public array $doc_references = [],
         public int $created_by = 0,
+        public ?string $invoice_kind = null,
     ) {}
 
     public static function fromRequest(StoreInvoiceRequest $request): self
@@ -94,6 +95,7 @@ final readonly class CreateInvoiceDTO
             lines: $lines,
             tax_totals: $tax_totals,
             created_by: $request->user()->id,
+            invoice_kind: $validated['invoice_kind'] ?? null,
         );
     }
 
@@ -105,6 +107,7 @@ final readonly class CreateInvoiceDTO
             'created_by' => $this->created_by,
             'invoice_number' => $this->invoice_number,
             'invoice_type_code' => $this->invoice_type_code,
+            'invoice_kind' => $this->invoice_kind,
             'issue_date' => $this->issue_date,
             'due_date' => $this->due_date,
             'issue_time' => $this->issue_time,

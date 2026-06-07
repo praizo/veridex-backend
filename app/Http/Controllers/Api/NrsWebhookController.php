@@ -24,7 +24,7 @@ class NrsWebhookController extends Controller
         $payload = $request->all();
 
         Log::info('NRS Webhook Received', [
-            'event' => $payload['event'] ?? 'unknown',
+            'message' => $payload['message'] ?? 'unknown',
             'irn' => $payload['irn'] ?? 'missing',
             'ip' => $request->ip(),
         ]);

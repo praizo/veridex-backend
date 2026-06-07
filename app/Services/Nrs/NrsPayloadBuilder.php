@@ -20,6 +20,7 @@ class NrsPayloadBuilder
         $payload = [
             'business_id' => (string) $organization->nrs_business_id, // This must be a valid UUID from the NRS platform
             'irn' => $invoice->irn,
+            'invoice_kind' => $invoice->invoice_kind,
             'issue_date' => $invoice->issue_date->format('Y-m-d'),
             'invoice_type_code' => (string) $invoice->invoice_type_code,
             'document_currency_code' => $invoice->document_currency_code,

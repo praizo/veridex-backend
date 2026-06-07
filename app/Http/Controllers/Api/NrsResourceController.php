@@ -39,11 +39,26 @@ class NrsResourceController extends Controller
 
     public function serviceCodes(): JsonResponse
     {
-        return response()->json(['data' => []]);
+        return response()->json(['data' => $this->resourceService->getServiceCodes()]);
+    }
+
+    public function countries(): JsonResponse
+    {
+        return response()->json(['data' => $this->resourceService->getCountries()]);
+    }
+
+    public function lgas(): JsonResponse
+    {
+        return response()->json(['data' => $this->resourceService->getLgas()]);
+    }
+
+    public function states(): JsonResponse
+    {
+        return response()->json(['data' => $this->resourceService->getStates()]);
     }
 
     public function vatExemptions(): JsonResponse
     {
-        return response()->json(['data' => []]);
+        return response()->json(['data' => $this->resourceService->getVatExemptions()]);
     }
 }

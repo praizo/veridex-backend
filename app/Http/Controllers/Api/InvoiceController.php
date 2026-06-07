@@ -113,6 +113,36 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Exchange: Self Health Check — Verify APP readiness for transmission.
+     */
+    public function selfHealthCheck(): JsonResponse
+    {
+        $result = $this->nrsService->selfHealthCheck();
+
+        return response()->json([
+            'message' => 'Self health check completed.',
+            'data' => $result,
+        ]);
+    }
+
+    /**
+     * Exchange: Lookup IRN — Retrieve invoice and party details from NRS.
+     */
+    public function lookupIrn(Invoice $invoice): JsonResponse
+    {
+        if (! $invoice->irn) {
+            return response()->json(['message' => 'This invoice has no IRN yet.'], 422);
+        }
+
+        $result = $this->nrsService->lookupIrn($invoice->irn);
+
+        return response()->json([
+            'message' => 'Lookup completed.',
+            'data' => $result,
+        ]);
+    }
+
+    /**
      * Phase 5: Download Official A4 PDF.
      */
     public function downloadPdf(Invoice $invoice)
@@ -127,8 +157,24 @@ class InvoiceController extends Controller
     {
         $validated = $request->validate([
             'payment_status' => 'required|string|in:PENDING,PAID,PARTIAL,REJECTED',
+            'reference' => 'nullable|string|max:255',
         ]);
 
+        // If the invoice has been fiscalized (signed or later status), push the update to NRS
+        $fiscalizedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'];
+        $currentStatus = $invoice->status->value ?? $invoice->status;
+
+        if (in_array($currentStatus, $fiscalizedStatuses) && $validated['payment_status'] !== 'PENDING') {
+            try {
+                $this->nrsService->updatePayment($invoice, $validated['payment_status'], $validated['reference'] ?? null);
+            } catch (\Throwable $e) {
+                return response()->json([
+                    'message' => 'Failed to update payment status on NRS: ' . $e->getMessage()
+                ], 400);
+            }
+        }
+
+        // Only update local DB if the remote update succeeded (or wasn't needed)
         $invoice->update(['payment_status' => $validated['payment_status']]);
 
         $this->activityLog->log(

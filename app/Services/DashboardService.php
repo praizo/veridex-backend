@@ -69,18 +69,19 @@ class DashboardService
 
     /**
      * Check if the NRS (FIRS) gateway is online and responding.
+     * Uses the documented self-health-check endpoint for APP readiness.
      */
     public function checkNrsHealth(): array
     {
         $start = microtime(true);
         try {
-            // Ping a lightweight resource endpoint
-            $this->nrsClient->get('invoice/resources/countries');
+            $response = $this->nrsClient->get('api/v1/invoice/transmit/self-health-check');
             $latency = round((microtime(true) - $start) * 1000);
 
             return [
                 'status' => 'online',
                 'latency' => "{$latency}ms",
+                'data' => $response->json(),
             ];
         } catch (\Exception $e) {
             return [

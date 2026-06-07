@@ -31,6 +31,19 @@ class InvoiceService
             $invoiceData = $dto->toInvoiceArray();
             $invoiceData['status'] = InvoiceStatus::DRAFT;
 
+            if (empty($invoiceData['invoice_kind'])) {
+                $customer = \App\Models\Customer::find($dto->customer_id);
+                if ($customer) {
+                    $invoiceData['invoice_kind'] = match ($customer->type) {
+                        'individual' => 'B2C',
+                        'government' => 'B2G',
+                        default => 'B2B',
+                    };
+                } else {
+                    $invoiceData['invoice_kind'] = 'B2B';
+                }
+            }
+
             $invoice = Invoice::create($invoiceData);
 
             // 2. Create Invoice Lines

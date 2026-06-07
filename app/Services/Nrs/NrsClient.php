@@ -177,16 +177,19 @@ class NrsClient
         $status = $response->status();
         $body = $response->json();
         $message = $body['message'] ?? 'Unknown NRS API error';
+        $errorDetails = null;
 
         if (isset($body['error'])) {
-            $errorDetails = is_array($body['error']) ? json_encode($body['error']) : $body['error'];
-            $message .= ' | Details: '.$errorDetails;
+            $errorDetails = is_array($body['error']) ? $body['error'] : ['raw' => $body['error']];
+            if (isset($errorDetails['public_message'])) {
+                $message = $errorDetails['public_message'];
+            }
         }
 
-        Log::warning('NRS API Error ['.$status.'] at '.$endpoint.': '.$message, [
+        Log::warning("NRS API Error [{$status}] at {$endpoint}: {$message}", [
             'response' => $body,
         ]);
 
-        throw new NrsApiException($message, $status);
+        throw new NrsApiException($message, $status, $errorDetails);
     }
 }
