@@ -36,7 +36,7 @@ class NrsInvoiceService
 
             return $responseData;
         } catch (\Throwable $e) {
-            Log::error('NRS Self Health Check Failed: ' . $e->getMessage());
+            Log::error('NRS Self Health Check Failed: '.$e->getMessage());
             throw $e;
         }
     }
@@ -54,7 +54,7 @@ class NrsInvoiceService
 
             return $responseData;
         } catch (\Throwable $e) {
-            Log::error('NRS Lookup IRN Failed: ' . $e->getMessage());
+            Log::error('NRS Lookup IRN Failed: '.$e->getMessage());
             throw $e;
         }
     }
@@ -165,25 +165,25 @@ class NrsInvoiceService
             if (str_contains(strtolower($e->getMessage()), 'terminal state')) {
                 Log::warning("NRS Payment Update: Invoice {$invoice->irn} is in a terminal state on NRS. Failing status update.", [
                     'invoice_id' => $invoice->id,
-                    'status' => $status
+                    'status' => $status,
                 ]);
 
                 $this->activityLog->log(
                     request()->user(),
                     'NRS_PAYMENT_UPDATE_SKIP',
                     $invoice,
-                    "NRS payment status update skipped: Invoice is in a terminal state on NRS."
+                    'NRS payment status update skipped: Invoice is in a terminal state on NRS.'
                 );
 
                 throw new NrsApiException('Invoice is in a terminal state on NRS and cannot be updated.', 400, $e);
             }
 
-            Log::error('NRS Payment Update Failed: ' . $e->getMessage());
+            Log::error('NRS Payment Update Failed: '.$e->getMessage());
             $this->activityLog->log(
                 request()->user(),
                 'NRS_PAYMENT_UPDATE_FAIL',
                 $invoice,
-                "Failed to update payment status on NRS: " . $e->getMessage(),
+                'Failed to update payment status on NRS: '.$e->getMessage(),
                 ['raw_error' => $e->getMessage()]
             );
             throw $e;

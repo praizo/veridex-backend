@@ -28,4 +28,3 @@ class EnsureOrganizationScope
         return $next($request);
     }
 }
-

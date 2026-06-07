@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\OtpService;
 use Illuminate\Http\JsonResponse;
@@ -129,7 +130,7 @@ class AuthController extends Controller
         // For registration, try to find existing payload
         $payload = null;
         if ($request->type === 'registration') {
-            $existingOtp = \App\Models\OtpCode::where('email', $request->email)
+            $existingOtp = OtpCode::where('email', $request->email)
                 ->where('type', 'registration')
                 ->whereNotNull('payload')
                 ->latest()

@@ -69,10 +69,10 @@ class ProcessNrsWebhookJob implements ShouldQueue
         //   TRANSMITTED   → All parties have confirmed; transmission complete
         //   FAILED        → Transmission failed (APP unreachable, etc.)
         $statusMap = [
-            'TRANSMITTING'  => InvoiceStatus::PENDING_TRANSMIT,
-            'ACKNOWLEDGED'  => InvoiceStatus::TRANSMITTED,
-            'TRANSMITTED'   => InvoiceStatus::CONFIRMED,
-            'FAILED'        => InvoiceStatus::TRANSMIT_FAILED,
+            'TRANSMITTING' => InvoiceStatus::PENDING_TRANSMIT,
+            'ACKNOWLEDGED' => InvoiceStatus::TRANSMITTED,
+            'TRANSMITTED' => InvoiceStatus::CONFIRMED,
+            'FAILED' => InvoiceStatus::TRANSMIT_FAILED,
         ];
 
         $targetStatus = $statusMap[$message] ?? null;

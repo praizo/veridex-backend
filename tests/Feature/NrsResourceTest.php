@@ -14,6 +14,7 @@ class NrsResourceTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Organization $organization;
 
     protected function setUp(): void
@@ -31,7 +32,7 @@ class NrsResourceTest extends TestCase
             'current_organization_id' => $this->organization->id,
             'onboarding_completed_at' => now(),
         ]);
-        
+
         $this->user->organizations()->attach($this->organization->id, ['role' => 'admin']);
     }
 
@@ -52,7 +53,7 @@ class NrsResourceTest extends TestCase
                 'data' => [
                     ['code' => 'NG', 'name' => 'Nigeria'],
                     ['code' => 'US', 'name' => 'United States'],
-                ]
+                ],
             ]);
     }
 
@@ -71,7 +72,7 @@ class NrsResourceTest extends TestCase
             ->assertJson([
                 'data' => [
                     ['code' => 'LGA1', 'name' => 'LGA One'],
-                ]
+                ],
             ]);
     }
 
@@ -90,7 +91,7 @@ class NrsResourceTest extends TestCase
             ->assertJson([
                 'data' => [
                     ['code' => 'LA', 'name' => 'Lagos'],
-                ]
+                ],
             ]);
     }
 
@@ -110,7 +111,7 @@ class NrsResourceTest extends TestCase
             ->assertJson([
                 'data' => [
                     ['code' => 'SVC1', 'description' => 'Service One'],
-                ]
+                ],
             ]);
 
         // Test the services-codes alias route
@@ -121,7 +122,7 @@ class NrsResourceTest extends TestCase
             ->assertJson([
                 'data' => [
                     ['code' => 'SVC1', 'description' => 'Service One'],
-                ]
+                ],
             ]);
     }
 
@@ -140,7 +141,7 @@ class NrsResourceTest extends TestCase
             ->assertJson([
                 'data' => [
                     ['code' => 'VAT_EX1', 'reason' => 'Exemption Reason'],
-                ]
+                ],
             ]);
     }
 }

@@ -117,7 +117,7 @@ class NrsResourceService
 
                 return is_array($result) ? $result : [];
             } catch (\Exception $e) {
-                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: " . $e->getMessage());
+                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: ".$e->getMessage());
 
                 return [];
             }

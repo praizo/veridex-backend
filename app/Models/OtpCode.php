@@ -42,6 +42,6 @@ class OtpCode extends Model
     public function scopeActive($query)
     {
         return $query->whereNull('verified_at')
-                     ->where('expires_at', '>', now());
+            ->where('expires_at', '>', now());
     }
 }

@@ -3,9 +3,13 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\Nrs\NrsInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
+use Mockery\MockInterface;
 use Tests\TestCase;
 
 class InvoiceTest extends TestCase
@@ -13,7 +17,9 @@ class InvoiceTest extends TestCase
     use RefreshDatabase;
 
     protected User $user;
+
     protected Organization $organization;
+
     protected Customer $customer;
 
     protected function setUp(): void
@@ -32,7 +38,7 @@ class InvoiceTest extends TestCase
             'current_organization_id' => $this->organization->id,
             'onboarding_completed_at' => now(),
         ]);
-        
+
         $this->user->organizations()->attach($this->organization->id, ['role' => 'admin']);
 
         $this->customer = Customer::create([
@@ -71,7 +77,7 @@ class InvoiceTest extends TestCase
                     'product_category' => 'Test Category',
                     'tax_category_id' => 'STANDARD_VAT',
                     'tax_percent' => 7.5,
-                ]
+                ],
             ],
             'tax_totals' => [
                 [
@@ -79,8 +85,8 @@ class InvoiceTest extends TestCase
                     'taxable_amount' => 1000,
                     'tax_category_id' => 'STANDARD_VAT',
                     'tax_percent' => 7.5,
-                ]
-            ]
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)
@@ -122,7 +128,7 @@ class InvoiceTest extends TestCase
                     'product_category' => 'Test Category',
                     'tax_category_id' => 'STANDARD_VAT',
                     'tax_percent' => 7.5,
-                ]
+                ],
             ],
             'tax_totals' => [
                 [
@@ -130,8 +136,8 @@ class InvoiceTest extends TestCase
                     'taxable_amount' => 1000,
                     'tax_category_id' => 'STANDARD_VAT',
                     'tax_percent' => 7.5,
-                ]
-            ]
+                ],
+            ],
         ];
 
         $response = $this->actingAs($this->user)
@@ -149,7 +155,7 @@ class InvoiceTest extends TestCase
 
     public function test_can_update_payment_status_locally_for_draft_invoice(): void
     {
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-003',
@@ -175,7 +181,7 @@ class InvoiceTest extends TestCase
 
     public function test_can_update_payment_status_on_nrs_for_signed_invoice(): void
     {
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-004',
@@ -189,7 +195,7 @@ class InvoiceTest extends TestCase
             'payable_amount' => 1075,
         ]);
 
-        $this->mock(\App\Services\Nrs\NrsInvoiceService::class, function (\Mockery\MockInterface $mock) use ($invoice) {
+        $this->mock(NrsInvoiceService::class, function (MockInterface $mock) use ($invoice) {
             $mock->shouldReceive('updatePayment')
                 ->once()
                 ->with(\Mockery::on(function ($arg) use ($invoice) {
@@ -212,7 +218,7 @@ class InvoiceTest extends TestCase
 
     public function test_updating_payment_status_to_pending_does_not_call_nrs(): void
     {
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-005',
@@ -226,7 +232,7 @@ class InvoiceTest extends TestCase
             'payable_amount' => 1075,
         ]);
 
-        $this->mock(\App\Services\Nrs\NrsInvoiceService::class, function (\Mockery\MockInterface $mock) {
+        $this->mock(NrsInvoiceService::class, function (MockInterface $mock) {
             $mock->shouldNotReceive('updatePayment');
         });
 
@@ -243,7 +249,7 @@ class InvoiceTest extends TestCase
 
     public function test_nrs_payment_update_handles_terminal_state_gracefully(): void
     {
-        $invoice = \App\Models\Invoice::create([
+        $invoice = Invoice::create([
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-006',
@@ -257,8 +263,8 @@ class InvoiceTest extends TestCase
             'payable_amount' => 1075,
         ]);
 
-        \Illuminate\Support\Facades\Http::fake([
-            '*/api/v1/invoice/update/*' => \Illuminate\Support\Facades\Http::response([
+        Http::fake([
+            '*/api/v1/invoice/update/*' => Http::response([
                 'code' => 400,
                 'data' => null,
                 'message' => 'error has occurred',
@@ -267,8 +273,8 @@ class InvoiceTest extends TestCase
                     'handler' => 'invoice_actions',
                     'details' => 'invoice is in a terminal state and cannot be updated',
                     'public_message' => 'invoice is in a terminal state and cannot be updated',
-                ]
-            ], 400)
+                ],
+            ], 400),
         ]);
 
         $response = $this->actingAs($this->user)

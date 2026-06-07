@@ -59,7 +59,7 @@ class VerifyNrsWebhookSignature
         // --- 3. Verify Timestamp (prevent replay attacks) ---
         try {
             $requestTime = new \DateTimeImmutable($timestamp);
-            $now = new \DateTimeImmutable();
+            $now = new \DateTimeImmutable;
             $diffSeconds = abs($now->getTimestamp() - $requestTime->getTimestamp());
             $tolerance = (int) config('services.nrs.webhook_timestamp_tolerance', 300);
 
@@ -91,7 +91,7 @@ class VerifyNrsWebhookSignature
         // --- 4. Verify HMAC-SHA256 Signature ---
         $secret = config('services.nrs.webhook_secret');
         $rawBody = $request->getContent();
-        $computedSignature = hash_hmac('sha256', $rawBody . $timestamp, $secret);
+        $computedSignature = hash_hmac('sha256', $rawBody.$timestamp, $secret);
 
         if (! hash_equals($computedSignature, $signature)) {
             Log::warning('NRS Webhook: Signature mismatch', ['ip' => $request->ip()]);

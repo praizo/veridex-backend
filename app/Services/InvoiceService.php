@@ -6,6 +6,7 @@ use App\DTOs\Invoice\CreateInvoiceDTO;
 use App\Enums\ActivityAction;
 use App\Enums\InvoiceStatus;
 use App\Exceptions\NrsApiException;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Services\Nrs\NrsResourceService;
 use Illuminate\Support\Facades\DB;
@@ -32,7 +33,7 @@ class InvoiceService
             $invoiceData['status'] = InvoiceStatus::DRAFT;
 
             if (empty($invoiceData['invoice_kind'])) {
-                $customer = \App\Models\Customer::find($dto->customer_id);
+                $customer = Customer::find($dto->customer_id);
                 if ($customer) {
                     $invoiceData['invoice_kind'] = match ($customer->type) {
                         'individual' => 'B2C',

@@ -169,7 +169,7 @@ class InvoiceController extends Controller
                 $this->nrsService->updatePayment($invoice, $validated['payment_status'], $validated['reference'] ?? null);
             } catch (\Throwable $e) {
                 return response()->json([
-                    'message' => 'Failed to update payment status on NRS: ' . $e->getMessage()
+                    'message' => 'Failed to update payment status on NRS: '.$e->getMessage(),
                 ], 400);
             }
         }
