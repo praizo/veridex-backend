@@ -6,6 +6,7 @@ use App\Models\Invoice;
 use App\Services\InvoicePdfService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
@@ -29,6 +30,10 @@ class InvoiceConfirmedMail extends Mailable implements ShouldQueue
     public function envelope(): Envelope
     {
         return new Envelope(
+            from: new Address(
+                (string) config('mail.from.address'),
+                'Veridex'
+            ),
             subject: "Tax Invoice Confirmed - #{$this->invoice->invoice_number}",
         );
     }
@@ -39,7 +44,7 @@ class InvoiceConfirmedMail extends Mailable implements ShouldQueue
     public function content(): Content
     {
         return new Content(
-            markdown: 'emails.invoices.confirmed',
+            view: 'emails.invoices.confirmed',
             with: [
                 'customerName' => $this->invoice->customer->name,
                 'invoiceNumber' => $this->invoice->invoice_number,
