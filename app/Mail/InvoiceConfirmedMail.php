@@ -22,7 +22,8 @@ class InvoiceConfirmedMail extends Mailable implements ShouldQueue
      */
     public function __construct(
         public Invoice $invoice
-    ) {}
+    ) {
+    }
 
     /**
      * Get the message envelope.
