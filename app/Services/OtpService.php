@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Events\OtpRequested;
 use App\Models\OtpCode;
+use Illuminate\Support\Facades\Log;
 
 class OtpService
 {
@@ -21,6 +22,12 @@ class OtpService
                 ->first();
 
             if ($existing) {
+                Log::info('OTP generation reused recent active code', [
+                    'email_hash' => hash('sha256', strtolower($email)),
+                    'type' => $type,
+                    'otp_id' => $existing->id,
+                ]);
+
                 return $existing;
             }
         }
@@ -46,6 +53,13 @@ class OtpService
 
         // Fire event — listener sends email asynchronously
         OtpRequested::dispatch($email, $code, $type);
+
+        Log::info('OTP email event dispatched', [
+            'email_hash' => hash('sha256', strtolower($email)),
+            'type' => $type,
+            'otp_id' => $otp->id,
+            'queue_connection' => config('queue.default'),
+        ]);
 
         return $otp;
     }

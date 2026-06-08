@@ -42,6 +42,21 @@ class AuthController extends Controller
         ]);
     }
 
+    private function clearAuthenticatedSession(Request $request): void
+    {
+        $accessToken = $request->user()?->currentAccessToken();
+        if ($accessToken && method_exists($accessToken, 'delete')) {
+            $accessToken->delete();
+        }
+
+        auth('web')->logout();
+
+        if ($request->hasSession()) {
+            $request->session()->invalidate();
+            $request->session()->regenerateToken();
+        }
+    }
+
     /**
      * Register — validates data, stores it as OTP payload, sends OTP email.
      * Does NOT create the user yet.
@@ -66,6 +81,7 @@ class AuthController extends Controller
             ]
         );
 
+        $this->clearAuthenticatedSession($request);
         $this->otpService->generate($user->email, 'registration');
 
         return response()->json([
@@ -105,6 +121,7 @@ class AuthController extends Controller
         }
 
         RateLimiter::clear($throttleKey);
+        $this->clearAuthenticatedSession($request);
         $this->otpService->generate($user->email, 'login');
 
         return response()->json([
@@ -250,16 +267,17 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
-        if ($request->user()->currentAccessToken()) {
-            $request->user()->currentAccessToken()->delete();
+        $accessToken = $request->user()?->currentAccessToken();
+        if ($accessToken && method_exists($accessToken, 'delete')) {
+            $accessToken->delete();
         }
 
-        auth('web')->logout();
+        $this->clearAuthenticatedSession($request);
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return response()->json(['message' => 'Logged out successfully']);
+        return response()
+            ->json(['message' => 'Logged out successfully'])
+            ->withoutCookie((string) config('session.cookie'), (string) config('session.path'), config('session.domain'))
+            ->withoutCookie('XSRF-TOKEN', (string) config('session.path'), config('session.domain'));
     }
 
     public function me(): JsonResponse

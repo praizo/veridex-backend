@@ -6,6 +6,7 @@ use App\Events\OtpRequested;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Services\OtpService;
+use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -177,6 +178,82 @@ class Phase2AuthenticationTest extends TestCase
             'email' => 'lockout@example.com',
             'password' => 'WrongPass1!',
         ])->assertStatus(429);
+    }
+
+    public function test_login_otp_challenge_clears_existing_authenticated_session(): void
+    {
+        Event::fake();
+        $sessionKey = $this->webSessionAuthKey();
+
+        $existingUser = User::factory()->create([
+            'email' => 'existing-session@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        $loginUser = User::factory()->create([
+            'email' => 'otp-login@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        $this->withSession([$sessionKey => $existingUser->getAuthIdentifier()]);
+        $this->getJson('/api/v1/me')->assertOk();
+
+        $this->postJson('/api/v1/login', [
+            'email' => $loginUser->email,
+            'password' => 'StrongPass1!',
+        ])->assertOk()
+            ->assertJson(['requires_otp' => true]);
+
+        $this->assertGuest('web');
+        $this->assertFalse(session()->has($sessionKey));
+    }
+
+    public function test_registration_otp_challenge_clears_existing_authenticated_session(): void
+    {
+        Event::fake();
+        $sessionKey = $this->webSessionAuthKey();
+
+        $existingUser = User::factory()->create([
+            'email' => 'existing-register-session@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        $this->withSession([$sessionKey => $existingUser->getAuthIdentifier()]);
+        $this->getJson('/api/v1/me')->assertOk();
+
+        $this->postJson('/api/v1/register', [
+            'name' => 'Pending User',
+            'email' => 'pending-registration@example.com',
+            'password' => 'StrongPass1!',
+            'password_confirmation' => 'StrongPass1!',
+        ])->assertOk()
+            ->assertJson(['requires_otp' => true]);
+
+        $this->assertGuest('web');
+        $this->assertFalse(session()->has($sessionKey));
+    }
+
+    public function test_logout_clears_authenticated_session(): void
+    {
+        $sessionKey = $this->webSessionAuthKey();
+
+        $user = User::factory()->create([
+            'email' => 'logout-session@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        $this->withSession([$sessionKey => $user->getAuthIdentifier()]);
+        $this->getJson('/api/v1/me')->assertOk();
+
+        $this->postJson('/api/v1/logout')->assertOk();
+
+        $this->assertGuest('web');
+        $this->assertFalse(session()->has($sessionKey));
+    }
+
+    private function webSessionAuthKey(): string
+    {
+        return 'login_web_'.sha1(SessionGuard::class);
     }
 
     public function test_password_reset_token_expires(): void
