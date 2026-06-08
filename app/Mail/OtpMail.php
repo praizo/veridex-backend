@@ -3,6 +3,7 @@
 namespace App\Mail;
 
 use Illuminate\Bus\Queueable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailable;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -23,7 +24,13 @@ class OtpMail extends Mailable
             ? 'Verify your Veridex account'
             : 'Your Veridex login code';
 
-        return new Envelope(subject: $subject);
+        return new Envelope(
+            from: new Address(
+                (string) config('mail.from.address'),
+                'Veridex'
+            ),
+            subject: $subject,
+        );
     }
 
     public function content(): Content

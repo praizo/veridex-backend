@@ -197,7 +197,7 @@ class AuthController extends Controller
         }
 
         RateLimiter::hit($throttleKey, 60);
-        $this->otpService->generate($request->email, $request->type);
+        $this->otpService->generate($request->email, $request->type, forceNew: true);
 
         return response()->json([
             'message' => 'A new verification code has been sent.',

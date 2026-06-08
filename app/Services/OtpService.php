@@ -10,8 +10,21 @@ class OtpService
     /**
      * Generate a new OTP code and dispatch the email event.
      */
-    public function generate(string $email, string $type, ?array $payload = null): OtpCode
+    public function generate(string $email, string $type, ?array $payload = null, bool $forceNew = false): OtpCode
     {
+        if (! $forceNew) {
+            $existing = OtpCode::active()
+                ->where('email', $email)
+                ->where('type', $type)
+                ->where('created_at', '>=', now()->subSeconds(30))
+                ->latest()
+                ->first();
+
+            if ($existing) {
+                return $existing;
+            }
+        }
+
         // Invalidate any previous active codes for this email + type
         OtpCode::where('email', $email)
             ->where('type', $type)

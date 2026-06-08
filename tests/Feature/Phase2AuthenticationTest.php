@@ -2,8 +2,10 @@
 
 namespace Tests\Feature;
 
+use App\Events\OtpRequested;
 use App\Models\OtpCode;
 use App\Models\User;
+use App\Services\OtpService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
@@ -125,6 +127,34 @@ class Phase2AuthenticationTest extends TestCase
         ])->assertStatus(422);
 
         $this->assertNull($user->fresh()->email_verified_at);
+    }
+
+    public function test_rapid_duplicate_otp_generation_reuses_active_code_without_resending_email(): void
+    {
+        Event::fake();
+
+        $service = app(OtpService::class);
+
+        $first = $service->generate('duplicate@example.com', 'login');
+        $second = $service->generate('duplicate@example.com', 'login');
+
+        $this->assertSame($first->id, $second->id);
+        $this->assertSame(1, OtpCode::where('email', 'duplicate@example.com')->where('type', 'login')->count());
+        Event::assertDispatchedTimes(OtpRequested::class, 1);
+    }
+
+    public function test_forced_otp_resend_creates_fresh_code_and_email_event(): void
+    {
+        Event::fake();
+
+        $service = app(OtpService::class);
+
+        $first = $service->generate('resend@example.com', 'login');
+        $second = $service->generate('resend@example.com', 'login', forceNew: true);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame(1, OtpCode::where('email', 'resend@example.com')->where('type', 'login')->active()->count());
+        Event::assertDispatchedTimes(OtpRequested::class, 2);
     }
 
     public function test_login_lockout_blocks_repeated_failed_attempts(): void
