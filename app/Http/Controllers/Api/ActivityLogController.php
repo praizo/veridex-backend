@@ -14,6 +14,17 @@ class ActivityLogController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $role = $request->user()
+            ->organizations()
+            ->where('organizations.id', $request->user()->current_organization_id)
+            ->first()
+            ?->pivot
+            ?->role;
+
+        if (! in_array($role, ['owner', 'admin', 'accountant'], true)) {
+            return response()->json(['message' => 'You are not authorized to view activity logs.'], 403);
+        }
+
         $logs = ActivityLog::where('organization_id', $request->user()->current_organization_id)
             ->with('user:id,name,email')
             ->latest()

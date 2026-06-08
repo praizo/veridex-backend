@@ -5,523 +5,615 @@
     <title>Invoice {{ $invoice->invoice_number }}</title>
     <style>
         @page {
-            margin: 0cm 0cm;
-        }
-        body {
-            font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
-            color: #1e293b;
-            font-size: 10pt;
-            margin: 0;
-            padding: 0;
-            line-height: 1.4;
-        }
-        .sidebar {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            width: 8px;
-            background-color: #0a1d43; /* Veridex Brand Navy */
-        }
-        .container {
-            margin-left: 8px;
-            padding: 35pt 45pt;
-        }
-        .header {
-            width: 100%;
-            margin-bottom: 25pt;
-        }
-        .brand-section {
-            width: 60%;
-            vertical-align: top;
-        }
-        .logo-placeholder {
-            width: 42pt;
-            height: 42pt;
-            background-color: #0a1d43;
-            border-radius: 6pt;
-            display: inline-block;
-            text-align: center;
-            line-height: 42pt;
-            color: white;
-            font-weight: 900;
-            font-size: 22pt;
-            margin-bottom: 12pt;
-        }
-        .org-name {
-            font-size: 16pt;
-            font-weight: 800;
-            margin: 0;
-            color: #0a1d43;
-            letter-spacing: -0.5pt;
-        }
-        .org-details {
-            font-size: 8.5pt;
-            color: #64748b;
-            margin-top: 5pt;
-            line-height: 1.5;
-        }
-        .invoice-meta {
-            width: 40%;
-            text-align: right;
-            vertical-align: top;
-        }
-        .title {
-            font-size: 22pt;
-            font-weight: 900;
-            color: #0a1d43;
-            text-transform: uppercase;
-            letter-spacing: 1.5pt;
-            margin: 0;
-        }
-        .type-badge {
-            display: inline-block;
-            background-color: #f1f5f9;
-            color: #0a1d43;
-            font-size: 7.5pt;
-            font-weight: 800;
-            padding: 2pt 6pt;
-            border-radius: 10pt;
-            margin-top: 5pt;
-            text-transform: uppercase;
-        }
-        .meta-grid {
-            margin-top: 12pt;
-            font-size: 9pt;
-        }
-        .meta-item {
-            color: #64748b;
-            margin-bottom: 3pt;
-        }
-        .meta-value {
-            font-weight: 700;
-            color: #0a1d43;
-        }
-        
-        .reference-section {
-            width: 100%;
-            margin-top: 25pt;
-            background-color: #f8fafc;
-            border: 1pt solid #f1f5f9;
-            border-radius: 8pt;
-            padding: 12pt;
-        }
-        .ref-grid {
-            width: 100%;
-        }
-        .ref-box {
-            width: 25%;
-            vertical-align: top;
-        }
-        .ref-label {
-            font-size: 7pt;
-            font-weight: 800;
-            color: #94a3b8;
-            text-transform: uppercase;
-            letter-spacing: 0.5pt;
-            margin-bottom: 2pt;
-        }
-        .ref-value {
-            font-size: 8.5pt;
-            font-weight: 700;
-            color: #1e293b;
+            margin: 26pt 30pt;
         }
 
-        .billing-section {
-            width: 100%;
-            margin-top: 30pt;
-            margin-bottom: 30pt;
+        * {
+            box-sizing: border-box;
         }
-        .billing-box {
-            width: 50%;
-            vertical-align: top;
+
+        body {
+            margin: 0;
+            font-family: DejaVu Sans, Arial, Helvetica, sans-serif;
+            color: #111827;
+            font-size: 9pt;
+            line-height: 1.45;
+            background: #ffffff;
         }
-        .section-label {
-            font-size: 7.5pt;
-            font-weight: 800;
-            color: #0a1d43;
-            text-transform: uppercase;
-            letter-spacing: 1.2pt;
-            margin-bottom: 8pt;
-            border-bottom: 1pt solid #e2e8f0;
-            display: inline-block;
-            padding-bottom: 1pt;
-        }
-        .customer-name {
-            font-size: 11pt;
-            font-weight: 800;
-            color: #1e293b;
-            margin-top: 5pt;
-        }
-        .customer-details {
-            font-size: 8.5pt;
-            color: #475569;
-            margin-top: 4pt;
-            line-height: 1.4;
-        }
-        .items-table {
+
+        table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 15pt;
         }
-        .items-table th {
-            text-align: left;
-            padding: 8pt 10pt;
-            background-color: #0a1d43;
-            color: white;
-            font-size: 7.5pt;
+
+        .muted {
+            color: #6b7280;
+        }
+
+        .label {
+            color: #6b7280;
+            font-size: 7pt;
             font-weight: 700;
+            letter-spacing: .7pt;
             text-transform: uppercase;
-            letter-spacing: 0.5pt;
         }
-        .items-table td {
-            padding: 10pt;
-            border-bottom: 1pt solid #f1f5f9;
-            vertical-align: top;
-        }
-        .item-row:last-child td {
-            border-bottom: 1.5pt solid #0a1d43;
-        }
-        .item-title {
-            font-weight: 800;
-            color: #0a1d43;
-            font-size: 9.5pt;
-        }
-        .item-description {
-            font-size: 8pt;
-            color: #64748b;
-            margin-top: 3pt;
-            line-height: 1.3;
-        }
-        .item-meta {
-            font-size: 7pt;
-            color: #94a3b8;
-            margin-top: 5pt;
-            font-weight: 600;
-        }
-        .financial-section {
-            margin-top: 25pt;
-            width: 100%;
-        }
-        .compliance-box {
-            width: 55%;
-            vertical-align: top;
-        }
-        .totals-box {
-            width: 45%;
-            vertical-align: top;
-        }
-        .totals-table {
-            width: 100%;
-        }
-        .totals-row {
-            padding: 5pt 0;
-            font-size: 9pt;
-        }
-        .totals-label {
-            color: #64748b;
-            font-weight: 500;
-        }
-        .totals-value {
-            text-align: right;
+
+        .value {
+            color: #111827;
             font-weight: 700;
-            color: #1e293b;
         }
-        .tax-breakdown-row {
-            font-size: 8pt;
-            color: #94a3b8;
-            font-style: italic;
-        }
-        .grand-total-row {
-            background-color: #0a1d43;
-            padding: 12pt;
-            border-radius: 4pt;
-            margin-top: 8pt;
-        }
-        .grand-total-label {
-            font-weight: 800;
-            color: white;
-            font-size: 11pt;
-            vertical-align: middle;
-        }
-        .grand-total-value {
-            text-align: right;
-            font-weight: 900;
-            color: white;
-            font-size: 16pt;
-            vertical-align: middle;
-        }
-        .notes-section {
-            margin-top: 30pt;
-            padding: 15pt;
-            background-color: #fafafa;
-            border-left: 2pt solid #0a1d43;
-        }
-        .notes-title {
-            font-size: 8pt;
-            font-weight: 800;
-            color: #0a1d43;
-            text-transform: uppercase;
-            margin-bottom: 5pt;
-        }
-        .notes-content {
-            font-size: 8.5pt;
-            color: #475569;
-            line-height: 1.5;
-        }
-        .qr-section {
-            margin-top: 5pt;
-        }
-        .qr-image {
-            width: 75pt;
-            height: 75pt;
-            margin-bottom: 8pt;
-        }
-        .compliance-badge {
-            display: inline-block;
-            background-color: #ecfdf5;
-            color: #059669;
-            font-size: 7pt;
-            font-weight: 800;
-            padding: 2pt 6pt;
-            border-radius: 4pt;
-            margin-bottom: 5pt;
-        }
-        .compliance-text {
-            font-size: 7pt;
-            color: #94a3b8;
-            line-height: 1.4;
-            max-width: 180pt;
-        }
+
         .watermark {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%) rotate(-35deg);
-            font-size: 90pt;
+            position: fixed;
+            top: 365pt;
+            left: 35pt;
+            right: 35pt;
+            text-align: center;
+            font-size: 54pt;
             font-weight: 900;
-            color: rgba(226, 232, 240, 0.25);
+            letter-spacing: 8pt;
+            color: #f1f5f9;
             z-index: -1;
             text-transform: uppercase;
-            letter-spacing: 10pt;
         }
-        .footer {
-            position: absolute;
-            bottom: 30pt;
-            left: 45pt;
-            right: 45pt;
-            border-top: 1pt solid #f1f5f9;
-            padding-top: 12pt;
+
+        .top-band {
+            border-radius: 12pt;
+            background: #f8fafc;
+            border: 1pt solid #dbe4f3;
+            color: #0a1d43;
+            padding: 0;
+            margin-bottom: 18pt;
+            overflow: hidden;
+        }
+
+        .brand-panel {
+            background: #0a1d43;
+            color: #ffffff;
+            padding: 20pt 21pt;
+            vertical-align: top;
+        }
+
+        .invoice-panel {
+            background: #ffffff;
+            color: #0a1d43;
+            padding: 20pt 21pt;
+            vertical-align: top;
+            border-left: 1pt solid #dbe4f3;
+        }
+
+        .header-accent-row {
+            height: 6pt;
+        }
+
+        .header-accent-main {
+            background: #0a1d43;
+            width: 64%;
+        }
+
+        .header-accent-soft {
+            background: #dbeafe;
+            width: 24%;
+        }
+
+        .header-accent-light {
+            background: #eff6ff;
+            width: 12%;
+        }
+
+        .brand-mark {
+            width: 34pt;
+            height: 34pt;
+            border-radius: 8pt;
+            background: #ffffff;
+            color: #0a1d43;
+            font-size: 18pt;
+            line-height: 34pt;
+            text-align: center;
+            font-weight: 900;
+            display: inline-block;
+            margin-right: 10pt;
+        }
+
+        .brand-name {
+            font-size: 15pt;
+            font-weight: 800;
+            margin: 0 0 3pt;
+            color: #ffffff;
+        }
+
+        .brand-meta {
+            color: #cbd5e1;
+            font-size: 8pt;
+        }
+
+        .brand-strip {
+            margin-top: 13pt;
+            padding-top: 10pt;
+            border-top: 1pt solid rgba(255,255,255,.18);
+            color: #dbeafe;
+            font-size: 7pt;
+            font-weight: 700;
+            letter-spacing: .8pt;
+            text-transform: uppercase;
+        }
+
+        .invoice-title {
+            text-align: right;
+            font-size: 27pt;
+            font-weight: 900;
+            letter-spacing: .6pt;
+            margin: 0;
+            color: #0a1d43;
+        }
+
+        .invoice-number {
+            text-align: right;
+            color: #64748b;
+            font-size: 9pt;
+            margin-top: 3pt;
+        }
+
+        .invoice-ref-box {
+            margin-top: 13pt;
+            border-radius: 8pt;
+            background: #f1f5f9;
+            border: 1pt solid #e2e8f0;
+            padding: 8pt 9pt;
+        }
+
+        .status-pill {
+            display: inline-block;
+            margin-top: 9pt;
+            padding: 4pt 8pt;
+            border-radius: 999pt;
+            background: #e8eef8;
+            color: #0a1d43;
+            font-size: 7pt;
+            font-weight: 800;
+            letter-spacing: .5pt;
+            text-transform: uppercase;
+        }
+
+        .draft-pill {
+            background: #f1f5f9;
+            color: #475569;
+        }
+
+        .summary-grid {
+            margin-bottom: 18pt;
+        }
+
+        .summary-card {
+            border: 1pt solid #e5e7eb;
+            border-radius: 8pt;
+            padding: 11pt 12pt;
+            background: #f9fafb;
+            vertical-align: top;
+        }
+
+        .summary-card + .summary-card {
+            border-left: 10pt solid #ffffff;
+        }
+
+        .party-section {
+            margin-bottom: 20pt;
+        }
+
+        .party-card {
+            width: 49%;
+            border: 1pt solid #e5e7eb;
+            border-radius: 9pt;
+            padding: 13pt;
+            vertical-align: top;
+        }
+
+        .party-gap {
+            width: 2%;
+        }
+
+        .party-title {
+            margin-top: 6pt;
+            font-size: 12pt;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .party-lines {
+            color: #4b5563;
+            font-size: 8pt;
+            margin-top: 5pt;
+        }
+
+        .section-title {
+            color: #111827;
+            font-size: 9pt;
+            font-weight: 800;
+            letter-spacing: .4pt;
+            text-transform: uppercase;
+            margin: 0 0 8pt;
+        }
+
+        .items {
+            margin-top: 8pt;
+            border: 1pt solid #e5e7eb;
+            border-radius: 9pt;
+            overflow: hidden;
+        }
+
+        .items th {
+            background: #f3f4f6;
+            color: #374151;
+            font-size: 7pt;
+            font-weight: 800;
+            letter-spacing: .5pt;
+            text-transform: uppercase;
+            padding: 8pt 8pt;
+            border-bottom: 1pt solid #e5e7eb;
+        }
+
+        .items td {
+            padding: 10pt 8pt;
+            border-bottom: 1pt solid #eef2f7;
+            vertical-align: top;
+        }
+
+        .items tr:last-child td {
+            border-bottom: none;
+        }
+
+        .item-name {
+            font-size: 9pt;
+            font-weight: 800;
+            color: #111827;
+        }
+
+        .item-desc {
+            margin-top: 3pt;
+            color: #6b7280;
             font-size: 7.5pt;
-            color: #94a3b8;
+        }
+
+        .item-tax {
+            margin-top: 5pt;
+            color: #2563eb;
+            font-size: 7pt;
+            font-weight: 700;
+        }
+
+        .num {
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .center {
             text-align: center;
         }
-        .text-navy { color: #0a1d43; }
-        .font-bold { font-weight: 700; }
-        .font-black { font-weight: 900; }
+
+        .bottom-section {
+            margin-top: 20pt;
+        }
+
+        .compliance-card {
+            width: 54%;
+            vertical-align: top;
+            border: 1pt solid #dbe4f3;
+            border-radius: 9pt;
+            background: #f8fafc;
+            padding: 12pt;
+        }
+
+        .totals-card {
+            width: 42%;
+            vertical-align: top;
+            border: 1pt solid #e5e7eb;
+            border-radius: 9pt;
+            padding: 12pt;
+        }
+
+        .bottom-gap {
+            width: 4%;
+        }
+
+        .qr {
+            width: 82pt;
+            height: 82pt;
+            border: 1pt solid #dbe4f3;
+            background: #ffffff;
+            padding: 5pt;
+            margin-right: 10pt;
+        }
+
+        .irn {
+            font-size: 7pt;
+            color: #0a1d43;
+            word-break: break-all;
+            line-height: 1.35;
+        }
+
+        .totals-table td {
+            padding: 4pt 0;
+        }
+
+        .totals-table .total-line td {
+            border-top: 1pt solid #e5e7eb;
+            padding-top: 8pt;
+        }
+
+        .grand-total {
+            margin-top: 8pt;
+            background: #0a1d43;
+            color: #ffffff;
+            border-radius: 8pt;
+            padding: 11pt 12pt;
+        }
+
+        .grand-total-label {
+            color: #d1d5db;
+            font-size: 8pt;
+            font-weight: 800;
+            text-transform: uppercase;
+        }
+
+        .grand-total-value {
+            color: #ffffff;
+            font-size: 15pt;
+            font-weight: 900;
+            text-align: right;
+            white-space: nowrap;
+        }
+
+        .notes {
+            margin-top: 18pt;
+            border-left: 3pt solid #0a1d43;
+            background: #f9fafb;
+            padding: 11pt 12pt;
+            color: #4b5563;
+            font-size: 8pt;
+        }
+
+        .footer {
+            position: fixed;
+            left: 30pt;
+            right: 30pt;
+            bottom: 14pt;
+            color: #9ca3af;
+            font-size: 7pt;
+            border-top: 1pt solid #e5e7eb;
+            padding-top: 7pt;
+        }
     </style>
 </head>
 <body>
-    @php
-        $typeMap = [
-            '380' => 'Commercial Invoice',
-            '381' => 'Credit Note',
-            '383' => 'Debit Note',
-            '386' => 'Prepayment Invoice',
-            '396' => 'Factored Invoice',
-        ];
-        $invoiceType = $typeMap[$invoice->invoice_type_code] ?? 'Standard Invoice';
-    @endphp
+@php
+    $typeMap = [
+        '380' => 'Commercial Invoice',
+        '381' => 'Credit Note',
+        '383' => 'Debit Note',
+        '386' => 'Prepayment Invoice',
+        '396' => 'Factored Invoice',
+    ];
 
-    <div class="sidebar"></div>
+    $invoiceType = $typeMap[$invoice->invoice_type_code] ?? 'Standard Invoice';
+    $status = $invoice->status?->value ?? $invoice->status;
+    $paymentStatus = $invoice->payment_status?->value ?? $invoice->payment_status;
+    $isFiscalized = in_array($status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'], true);
+    $currency = $invoice->document_currency_code ?? 'NGN';
+    $taxAmount = (float) $invoice->tax_inclusive_amount - (float) $invoice->tax_exclusive_amount;
+@endphp
 
-    @if($invoice->status->value !== 'confirmed' && $invoice->status->value !== 'transmitted')
-    <div class="watermark">DRAFT</div>
-    @endif
+<div class="watermark">{{ $isFiscalized ? 'VERIDEX' : 'DRAFT' }}</div>
 
-    <div class="container">
-        <!-- HEADER -->
-        <table class="header">
-            <tr>
-                <td class="brand-section">
-                    <div class="logo-placeholder">V</div>
-                    <h1 class="org-name">{{ $invoice->organization->name }}</h1>
-                    <div class="org-details">
-                        <span class="font-bold text-navy">TIN:</span> {{ $invoice->organization->tin }}<br>
-                        {{ $invoice->organization->street_name }}, {{ $invoice->organization->city_name }}<br>
-                        {{ $invoice->organization->email }} | {{ $invoice->organization->telephone }}
-                    </div>
-                </td>
-                <td class="invoice-meta">
-                    <h2 class="title">Invoice</h2>
-                    <div class="type-badge">{{ $invoiceType }}</div>
-                    <div class="meta-grid">
-                        <div class="meta-item">Number: <span class="meta-value">#{{ $invoice->invoice_number }}</span></div>
-                        <div class="meta-item">Issued: <span class="meta-value">{{ $invoice->issue_date->format('d M, Y') }}</span> @if($invoice->issue_time) <span style="font-size: 8pt; opacity: 0.7;">{{ $invoice->issue_time }}</span> @endif</div>
-                        <div class="meta-item">Due Date: <span class="meta-value">{{ $invoice->due_date ? $invoice->due_date->format('d M, Y') : 'On Receipt' }}</span></div>
-                        @if($invoice->tax_point_date)
-                        <div class="meta-item">Tax Point: <span class="meta-value">{{ $invoice->tax_point_date->format('d M, Y') }}</span></div>
-                        @endif
-                        <div class="meta-item">Currency: <span class="meta-value">{{ $invoice->document_currency_code }}</span></div>
-                    </div>
-                </td>
-            </tr>
-        </table>
-
-        <!-- REFERENCES -->
-        <div class="reference-section">
-            <table class="ref-grid" style="width: 100%;">
-                <tr>
-                    <td style="width: 50%; vertical-align: top;">
-                        <div class="ref-label">Order Reference / PO #</div>
-                        <div class="ref-value">{{ $invoice->order_reference ?? '--' }}</div>
-                    </td>
-                    <td style="width: 50%; vertical-align: top; text-align: right;">
-                        <div class="ref-label">Payment Category</div>
-                        <div class="ref-value">{{ $invoice->payment_status->value }}</div>
-                    </td>
-                </tr>
-            </table>
-        </div>
-
-        <!-- BILLING -->
-        <table class="billing-section">
-            <tr>
-                <td class="billing-box">
-                    <div class="section-label">Recipient Information</div>
-                    <div class="customer-name">{{ $invoice->customer->name }}</div>
-                    <div class="customer-details">
-                        <span class="font-bold text-navy">TIN:</span> {{ $invoice->customer->tin ?? 'N/A' }}<br>
-                        {{ $invoice->customer->email }}<br>
-                        {{ $invoice->customer->street_name }}@if($invoice->customer->building_number), No {{ $invoice->customer->building_number }} @endif<br>
-                        {{ $invoice->customer->city_name }}, {{ $invoice->customer->country_subentity ?? '' }}
-                    </div>
-                </td>
-                <td class="billing-box" style="text-align: right;">
-                    @if($invoice->actual_delivery_date)
-                    <div class="section-label">Delivery Context</div>
-                    <div class="customer-details">
-                        Delivery Date: <span class="font-bold text-navy">{{ $invoice->actual_delivery_date->format('d M, Y') }}</span><br>
-                        @if($invoice->delivery_period_start)
-                        Period: {{ $invoice->delivery_period_start->format('d M') }} - {{ $invoice->delivery_period_end->format('d M, Y') }}
-                        @endif
-                    </div>
-                    @endif
-                </td>
-            </tr>
-        </table>
-
-        <!-- ITEMS -->
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th width="35%">Service / Item Description</th>
-                    <th width="15%" style="text-align: center;">HS Code</th>
-                    <th width="10%" style="text-align: center;">Qty</th>
-                    <th width="10%" style="text-align: center;">Unit</th>
-                    <th width="12%" style="text-align: right;">Price</th>
-                    <th width="18%" style="text-align: right;">Amount ({{ $invoice->document_currency_code }})</th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach($invoice->lines as $line)
-                <tr class="item-row">
-                    <td>
-                        <div class="item-title">{{ $line->item_name }}</div>
-                        @if($line->item_description)
-                        <div class="item-description">{{ $line->item_description }}</div>
-                        @endif
-                        <div class="item-meta">
-                            Tax: {{ $line->tax_category_id }} ({{ number_format($line->tax_percent, 1) }}%)
-                        </div>
-                    </td>
-                    <td style="text-align: center; vertical-align: top; padding-top: 15pt;">
-                        <span class="font-mono text-xs">{{ $line->hscode ?? '--' }}</span>
-                    </td>
-                    <td style="text-align: center; font-weight: 700; padding-top: 15pt;">{{ number_format($line->invoiced_quantity, 0) }}</td>
-                    <td style="text-align: center; color: #64748b; padding-top: 15pt; font-size: 8pt;">{{ $line->unit_code ?? 'PCE' }}</td>
-                    <td style="text-align: right; padding-top: 15pt;">{{ number_format($line->price_amount, 2) }}</td>
-                    <td style="text-align: right; font-weight: 800; color: #0a1d43; padding-top: 15pt;">{{ number_format($line->line_extension_amount, 2) }}</td>
-                </tr>
-                @endforeach
-            </tbody>
-        </table>
-
-        <!-- FINANCIALS -->
-        <table class="financial-section">
-            <tr>
-                <td class="compliance-box">
-                    @if($qrCodeSrc)
-                    <div class="qr-section">
-                        <div class="compliance-badge">FIRS COMPLIANT</div><br>
-                        <img src="{{ $qrCodeSrc }}" class="qr-image">
-                        <div class="compliance-text">
-                            <span class="font-bold text-navy">MBS Validation ID:</span><br>
-                            {{ $invoice->irn }}<br><br>
-                            This document has been digitally signed and transmitted to the National Revenue Service infrastructure.
-                        </div>
-                    </div>
-                    @else
-                    <div style="padding-top: 20pt;">
-                        <div class="section-label">Important Note</div>
-                        <div class="compliance-text">
-                            This is a draft document and has not yet been submitted for official IRN signing.
-                        </div>
-                    </div>
-                    @endif
-                </td>
-                <td class="totals-box">
-                    <table class="totals-table">
-                        <tr class="totals-row">
-                            <td class="totals-label">Subtotal (Net)</td>
-                            <td class="totals-value">{{ number_format($invoice->tax_exclusive_amount, 2) }}</td>
+<div class="top-band">
+    <table>
+        <tr>
+            <td class="brand-panel" style="width: 62%;">
+                <table>
+                    <tr>
+                        <td style="width: 44pt; vertical-align: top;">
+                            <div class="brand-mark">V</div>
+                        </td>
+                        <td style="vertical-align: top;">
+                            <h1 class="brand-name">{{ $invoice->organization->name }}</h1>
+                            <div class="brand-meta">
+                                TIN: {{ $invoice->organization->tin ?? 'N/A' }}<br>
+                                {{ $invoice->organization->street_name ?? '' }}{{ $invoice->organization->city_name ? ', '.$invoice->organization->city_name : '' }}<br>
+                                {{ $invoice->organization->email ?? '' }}{{ $invoice->organization->telephone ? ' | '.$invoice->organization->telephone : '' }}
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+                <div class="brand-strip">Veridex e-invoicing compliance document</div>
+            </td>
+            <td class="invoice-panel" style="width: 38%;">
+                <div class="invoice-title">Invoice</div>
+                <div class="invoice-number">#{{ $invoice->invoice_number }}</div>
+                <div class="invoice-ref-box">
+                    <table>
+                        <tr>
+                            <td>
+                                <div class="label">Document type</div>
+                                <div class="value">{{ $invoiceType }}</div>
+                            </td>
                         </tr>
-                        @foreach($invoice->taxTotals as $tax)
-                        <tr class="totals-row">
-                            <td class="totals-label">{{ $tax->tax_category_id }} ({{ number_format($tax->tax_percent, 1) }}%)</td>
-                            <td class="totals-value">{{ number_format($tax->tax_amount, 2) }}</td>
-                        </tr>
-                        @endforeach
-                        <tr class="totals-row">
-                            <td class="totals-label">Total Tax Amount</td>
-                            <td class="totals-value">{{ number_format($invoice->tax_inclusive_amount - $invoice->tax_exclusive_amount, 2) }}</td>
-                        </tr>
-                        @if($invoice->allowance_total_amount > 0)
-                        <tr class="totals-row">
-                            <td class="totals-label text-destructive">Discounts</td>
-                            <td class="totals-value text-destructive">-{{ number_format($invoice->allowance_total_amount, 2) }}</td>
-                        </tr>
-                        @endif
-                        <tr class="grand-total-row">
-                            <td class="grand-total-label">Payable Total</td>
-                            <td class="grand-total-value">{{ number_format($invoice->payable_amount, 2) }} {{ $invoice->document_currency_code }}</td>
+                        <tr>
+                            <td style="padding-top: 6pt;">
+                                <div class="label">Status</div>
+                                <div class="status-pill {{ $isFiscalized ? '' : 'draft-pill' }}">
+                                    {{ $isFiscalized ? 'FIRS signed' : 'Draft document' }}
+                                </div>
+                            </td>
                         </tr>
                     </table>
+                </div>
+            </td>
+        </tr>
+        <tr class="header-accent-row">
+            <td class="header-accent-main"></td>
+            <td style="padding: 0;">
+                <table>
+                    <tr>
+                        <td class="header-accent-soft"></td>
+                        <td class="header-accent-light"></td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</div>
+
+<table class="summary-grid">
+    <tr>
+        <td class="summary-card" style="width: 25%;">
+            <div class="label">Issue date</div>
+            <div class="value">{{ $invoice->issue_date ? $invoice->issue_date->format('d M Y') : 'N/A' }}</div>
+        </td>
+        <td class="summary-card" style="width: 25%;">
+            <div class="label">Due date</div>
+            <div class="value">{{ $invoice->due_date ? $invoice->due_date->format('d M Y') : 'On receipt' }}</div>
+        </td>
+        <td class="summary-card" style="width: 25%;">
+            <div class="label">Payment</div>
+            <div class="value">{{ str_replace('_', ' ', (string) $paymentStatus) }}</div>
+        </td>
+        <td class="summary-card" style="width: 25%;">
+            <div class="label">Currency</div>
+            <div class="value">{{ $currency }}</div>
+        </td>
+    </tr>
+</table>
+
+<table class="party-section">
+    <tr>
+        <td class="party-card">
+            <div class="label">Billed from</div>
+            <div class="party-title">{{ $invoice->organization->name }}</div>
+            <div class="party-lines">
+                TIN: {{ $invoice->organization->tin ?? 'N/A' }}<br>
+                {{ $invoice->organization->street_name ?? '' }}<br>
+                {{ $invoice->organization->city_name ?? '' }}{{ $invoice->organization->country_subentity ? ', '.$invoice->organization->country_subentity : '' }}<br>
+                {{ $invoice->organization->email ?? '' }}
+            </div>
+        </td>
+        <td class="party-gap"></td>
+        <td class="party-card">
+            <div class="label">Billed to</div>
+            <div class="party-title">{{ $invoice->customer->name }}</div>
+            <div class="party-lines">
+                TIN: {{ $invoice->customer->tin ?? 'N/A' }}<br>
+                {{ $invoice->customer->street_name ?? '' }}{{ $invoice->customer->building_number ? ', No '.$invoice->customer->building_number : '' }}<br>
+                {{ $invoice->customer->city_name ?? '' }}{{ $invoice->customer->country_subentity ? ', '.$invoice->customer->country_subentity : '' }}<br>
+                {{ $invoice->customer->email ?? '' }}
+            </div>
+        </td>
+    </tr>
+</table>
+
+<div class="section-title">Line items</div>
+<table class="items">
+    <thead>
+        <tr>
+            <th style="width: 42%; text-align: left;">Description</th>
+            <th style="width: 12%;" class="center">Code</th>
+            <th style="width: 10%;" class="center">Qty</th>
+            <th style="width: 13%;" class="num">Unit price</th>
+            <th style="width: 10%;" class="num">Tax</th>
+            <th style="width: 13%;" class="num">Amount</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach($invoice->lines as $line)
+            <tr>
+                <td>
+                    <div class="item-name">{{ $line->item_name }}</div>
+                    @if($line->item_description)
+                        <div class="item-desc">{{ $line->item_description }}</div>
+                    @endif
+                    <div class="item-tax">{{ $line->tax_category_id ?? 'VAT' }} at {{ number_format((float) $line->tax_percent, 1) }}%</div>
                 </td>
+                <td class="center muted">{{ $line->hscode ?? $line->hsn_code ?? '--' }}</td>
+                <td class="center">{{ number_format((float) $line->invoiced_quantity, 2) }}</td>
+                <td class="num">{{ number_format((float) $line->price_amount, 2) }}</td>
+                <td class="num">{{ number_format(((float) $line->line_extension_amount * (float) $line->tax_percent) / 100, 2) }}</td>
+                <td class="num value">{{ number_format((float) $line->line_extension_amount, 2) }}</td>
             </tr>
-        </table>
+        @endforeach
+    </tbody>
+</table>
 
-        @if($invoice->note || $invoice->payment_terms_note)
-        <div class="notes-section">
-            @if($invoice->note)
-            <div class="notes-title">Remarks / Instructions</div>
-            <div class="notes-content">{{ $invoice->note }}</div>
+<table class="bottom-section">
+    <tr>
+        <td class="compliance-card">
+            <div class="section-title" style="margin-bottom: 7pt;">Compliance</div>
+            @if($qrCodeSrc)
+                <table>
+                    <tr>
+                        <td style="width: 96pt; vertical-align: top;">
+                            <img src="{{ $qrCodeSrc }}" class="qr">
+                        </td>
+                        <td style="vertical-align: top;">
+                            <div class="label" style="color: #0a1d43;">FIRS validation</div>
+                            <div class="irn">{{ $invoice->irn }}</div>
+                            <div class="muted" style="font-size: 7.5pt; margin-top: 7pt;">
+                                This invoice has been signed for e-invoicing compliance. Scan the QR code or use the IRN for verification.
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            @else
+                <div class="muted" style="font-size: 8pt;">
+                    This invoice has not been signed yet. Final e-invoicing validation details will appear after signing.
+                </div>
             @endif
-            
-            @if($invoice->payment_terms_note)
-            <div class="notes-title" style="margin-top: 10pt;">Payment Terms</div>
-            <div class="notes-content">{{ $invoice->payment_terms_note }}</div>
-            @endif
-        </div>
+        </td>
+        <td class="bottom-gap"></td>
+        <td class="totals-card">
+            <div class="section-title">Summary</div>
+            <table class="totals-table">
+                <tr>
+                    <td class="muted">Subtotal</td>
+                    <td class="num value">{{ number_format((float) $invoice->tax_exclusive_amount, 2) }}</td>
+                </tr>
+                @foreach($invoice->taxTotals as $tax)
+                    <tr>
+                        <td class="muted">{{ $tax->tax_category_id }} ({{ number_format((float) $tax->tax_percent, 1) }}%)</td>
+                        <td class="num value">{{ number_format((float) $tax->tax_amount, 2) }}</td>
+                    </tr>
+                @endforeach
+                <tr class="total-line">
+                    <td class="muted">Total tax</td>
+                    <td class="num value">{{ number_format($taxAmount, 2) }}</td>
+                </tr>
+                @if((float) $invoice->allowance_total_amount > 0)
+                    <tr>
+                        <td class="muted">Discounts</td>
+                        <td class="num value">-{{ number_format((float) $invoice->allowance_total_amount, 2) }}</td>
+                    </tr>
+                @endif
+            </table>
+            <table class="grand-total">
+                <tr>
+                    <td class="grand-total-label">Payable</td>
+                    <td class="grand-total-value">{{ number_format((float) $invoice->payable_amount, 2) }} {{ $currency }}</td>
+                </tr>
+            </table>
+        </td>
+    </tr>
+</table>
+
+@if($invoice->note || $invoice->payment_terms_note)
+    <div class="notes">
+        @if($invoice->note)
+            <strong>Note:</strong> {{ $invoice->note }}<br>
         @endif
-
-        <div class="footer">
-            Veridex Compliance Engine | Document Authentication: {{ substr(md5($invoice->id . $invoice->created_at), 0, 12) }}
-            <br>
-            All amounts are in {{ $invoice->document_currency_code }}. Verified by FIRS MBS Gateway.
-        </div>
+        @if($invoice->payment_terms_note)
+            <strong>Payment terms:</strong> {{ $invoice->payment_terms_note }}
+        @endif
     </div>
-</body>
-</html>
+@endif
+
+<div class="footer">
+    Veridex e-invoicing document | {{ $invoice->invoice_number }} | {{ $currency }} | Generated {{ now()->format('d M Y H:i') }}
+</div>
 </body>
 </html>

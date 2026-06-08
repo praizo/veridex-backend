@@ -44,6 +44,10 @@ class InvoiceStateService
             'ip_address' => request()->ip(),
         ]);
 
+        if ($toStatus === InvoiceStatus::SIGNED) {
+            $invoice->captureImmutableSnapshot();
+        }
+
         $invoice->update(['status' => $toStatus]);
 
         $newStatus = $toStatus->value;

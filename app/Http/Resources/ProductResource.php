@@ -13,11 +13,10 @@ class ProductResource extends JsonResource
             'id' => $this->uuid,
             'name' => $this->name,
             'description' => $this->description,
-            'sku' => $this->sku,
-            'price' => $this->price,
-            'unit' => $this->unit,
-            'hsn_code' => $this->hsn_code,
-            'product_category' => $this->product_category,
+            'price' => $this->unit_price,
+            'unit' => $this->unit_code,
+            'hsn_code' => $this->hs_code,
+            'product_category' => $this->tax_category,
             'created_at' => $this->created_at,
         ];
     }

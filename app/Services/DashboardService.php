@@ -3,6 +3,8 @@
 namespace App\Services;
 
 use App\Enums\InvoiceStatus;
+use App\Exceptions\NrsApiException;
+use App\Exceptions\NrsConnectionException;
 use App\Models\ActivityLog;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -84,9 +86,13 @@ class DashboardService
                 'data' => $response->json(),
             ];
         } catch (\Exception $e) {
+            $errorMessage = ($e instanceof NrsConnectionException || $e instanceof NrsApiException)
+                ? $e->getMessage()
+                : 'The official FIRS/NRS service is temporarily unreachable. Please check your internet connection or try again later.';
+
             return [
                 'status' => 'offline',
-                'error' => $e->getMessage(),
+                'error' => $errorMessage,
             ];
         }
     }

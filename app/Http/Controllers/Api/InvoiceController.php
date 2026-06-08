@@ -6,6 +6,7 @@ use App\DTOs\Invoice\CreateInvoiceDTO;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Invoice\StoreInvoiceRequest;
 use App\Http\Resources\InvoiceResource;
+use App\Models\IdempotencyRecord;
 use App\Models\Invoice;
 use App\Services\ActivityLogService;
 use App\Services\InvoicePdfService;
@@ -13,6 +14,7 @@ use App\Services\InvoiceService;
 use App\Services\Nrs\NrsInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 
 class InvoiceController extends Controller
 {
@@ -41,19 +43,42 @@ class InvoiceController extends Controller
      */
     public function store(StoreInvoiceRequest $request): JsonResponse
     {
-        $dto = CreateInvoiceDTO::fromRequest($request);
-        $invoice = $this->invoiceService->createInvoice($dto);
+        if ($response = $this->idempotentReplay($request, 'invoice:create')) {
+            return $response;
+        }
 
-        return response()->json([
-            'message' => 'Invoice created successfully.',
-            'data' => new InvoiceResource($invoice->load([
-                'customer',
-                'lines',
-                'organization',
-                'taxTotals',
-                'stateTransitions',
-            ])),
-        ], 201);
+        $result = DB::transaction(function () use ($request) {
+            $dto = CreateInvoiceDTO::fromRequest($request);
+            $invoice = $this->invoiceService->createInvoice($dto);
+
+            return [
+                'status' => 201,
+                'payload' => [
+                    'message' => 'Invoice created successfully.',
+                    'data' => (new InvoiceResource($invoice->load([
+                        'customer',
+                        'lines',
+                        'organization',
+                        'taxTotals',
+                        'stateTransitions',
+                    ])))->resolve($request),
+                ],
+            ];
+        });
+
+        $this->storeIdempotentResponse($request, 'invoice:create', $result['status'], $result['payload']);
+
+        return response()->json($result['payload'], $result['status']);
+    }
+
+    /**
+     * Display the specified invoice.
+     */
+    protected function checkInvoiceTenancy(Invoice $invoice): void
+    {
+        if ($invoice->organization_id !== request()->user()->current_organization_id) {
+            abort(403, 'Unauthorized access to invoice');
+        }
     }
 
     /**
@@ -61,6 +86,8 @@ class InvoiceController extends Controller
      */
     public function show(Invoice $invoice): InvoiceResource
     {
+        $this->checkInvoiceTenancy($invoice);
+
         return new InvoiceResource($invoice->load([
             'customer',
             'organization',
@@ -77,6 +104,8 @@ class InvoiceController extends Controller
      */
     public function validateOnNrs(Invoice $invoice): InvoiceResource
     {
+        $this->checkInvoiceTenancy($invoice);
+
         $this->nrsService->validate($invoice);
 
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
@@ -87,6 +116,8 @@ class InvoiceController extends Controller
      */
     public function signOnNrs(Invoice $invoice): InvoiceResource
     {
+        $this->checkInvoiceTenancy($invoice);
+
         $this->nrsService->sign($invoice);
 
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
@@ -97,6 +128,8 @@ class InvoiceController extends Controller
      */
     public function transmitOnNrs(Invoice $invoice): InvoiceResource
     {
+        $this->checkInvoiceTenancy($invoice);
+
         $this->nrsService->transmit($invoice);
 
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
@@ -107,6 +140,8 @@ class InvoiceController extends Controller
      */
     public function confirmOnNrs(Invoice $invoice): InvoiceResource
     {
+        $this->checkInvoiceTenancy($invoice);
+
         $this->nrsService->confirm($invoice);
 
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
@@ -130,6 +165,8 @@ class InvoiceController extends Controller
      */
     public function lookupIrn(Invoice $invoice): JsonResponse
     {
+        $this->checkInvoiceTenancy($invoice);
+
         if (! $invoice->irn) {
             return response()->json(['message' => 'This invoice has no IRN yet.'], 422);
         }
@@ -143,10 +180,12 @@ class InvoiceController extends Controller
     }
 
     /**
-     * Phase 5: Download Official A4 PDF.
+     * Download locally generated A4 PDF.
      */
     public function downloadPdf(Invoice $invoice)
     {
+        $this->checkInvoiceTenancy($invoice);
+
         return $this->pdfService->generate($invoice);
     }
 
@@ -155,6 +194,12 @@ class InvoiceController extends Controller
      */
     public function updatePaymentStatus(Request $request, Invoice $invoice): JsonResponse
     {
+        $this->checkInvoiceTenancy($invoice);
+
+        if ($response = $this->idempotentReplay($request, "invoice:{$invoice->id}:payment")) {
+            return $response;
+        }
+
         $validated = $request->validate([
             'payment_status' => 'required|string|in:PENDING,PAID,PARTIAL,REJECTED',
             'reference' => 'nullable|string|max:255',
@@ -169,7 +214,10 @@ class InvoiceController extends Controller
                 $this->nrsService->updatePayment($invoice, $validated['payment_status'], $validated['reference'] ?? null);
             } catch (\Throwable $e) {
                 return response()->json([
-                    'message' => 'Failed to update payment status on NRS: '.$e->getMessage(),
+                    'code' => 'NRS_PAYMENT_UPDATE_FAILED',
+                    'message' => 'Failed to update payment status on NRS.',
+                    'details' => ['reason' => $e->getMessage()],
+                    'retryable' => true,
                 ], 400);
             }
         }
@@ -184,9 +232,57 @@ class InvoiceController extends Controller
             "Marked invoice as {$validated['payment_status']}"
         );
 
-        return response()->json([
+        $payload = [
             'message' => 'Payment status updated.',
             'status' => $invoice->payment_status,
+        ];
+
+        $this->storeIdempotentResponse($request, "invoice:{$invoice->id}:payment", 200, $payload);
+
+        return response()->json($payload);
+    }
+
+    private function idempotencyKey(Request $request): ?string
+    {
+        return $request->header('Idempotency-Key') ?: $request->header('X-Idempotency-Key');
+    }
+
+    private function idempotentReplay(Request $request, string $scope): ?JsonResponse
+    {
+        $key = $this->idempotencyKey($request);
+        if (! $key) {
+            return null;
+        }
+
+        $record = IdempotencyRecord::where('organization_id', $request->user()->current_organization_id)
+            ->where('scope', $scope)
+            ->where('key', $key)
+            ->whereNotNull('completed_at')
+            ->first();
+
+        if (! $record) {
+            return null;
+        }
+
+        return response()->json($record->response_payload, $record->status_code ?? 200)
+            ->header('X-Idempotent-Replay', 'true');
+    }
+
+    private function storeIdempotentResponse(Request $request, string $scope, int $statusCode, array $payload): void
+    {
+        $key = $this->idempotencyKey($request);
+        if (! $key) {
+            return;
+        }
+
+        IdempotencyRecord::updateOrCreate([
+            'organization_id' => $request->user()->current_organization_id,
+            'scope' => $scope,
+            'key' => $key,
+        ], [
+            'status_code' => $statusCode,
+            'response_payload' => $payload,
+            'completed_at' => now(),
         ]);
     }
 }

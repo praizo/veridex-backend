@@ -68,7 +68,14 @@ class NrsResourceService
      */
     public function getCountries(): array
     {
-        return $this->fetch('api/v1/invoice/resources/countries', 'nrs_countries');
+        $countries = $this->fetch('api/v1/invoice/resources/countries', 'nrs_countries');
+
+        return array_map(function ($country) {
+            return [
+                'code' => $country['alpha_2'] ?? ($country['code'] ?? null),
+                'name' => $country['name'] ?? null,
+            ];
+        }, $countries);
     }
 
     /**

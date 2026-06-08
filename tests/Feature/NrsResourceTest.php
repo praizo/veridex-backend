@@ -6,6 +6,8 @@ use App\Models\Organization;
 use App\Models\User;
 use App\Services\Nrs\NrsResourceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Http;
 use Mockery\MockInterface;
 use Tests\TestCase;
 
@@ -143,5 +145,37 @@ class NrsResourceTest extends TestCase
                     ['code' => 'VAT_EX1', 'reason' => 'Exemption Reason'],
                 ],
             ]);
+    }
+
+    public function test_countries_api_mapping_resolves_alpha_2_to_code(): void
+    {
+        Cache::forget('nrs_countries');
+
+        Http::fake([
+            '*/api/v1/invoice/resources/countries' => Http::response([
+                'data' => [
+                    [
+                        'name' => 'Afghanistan',
+                        'alpha_2' => 'AF',
+                        'alpha_3' => 'AFG',
+                        'country_code' => '004',
+                    ],
+                    [
+                        'name' => 'Nigeria',
+                        'alpha_2' => 'NG',
+                        'alpha_3' => 'NGA',
+                        'country_code' => '566',
+                    ],
+                ],
+            ], 200),
+        ]);
+
+        $service = app(NrsResourceService::class);
+        $result = $service->getCountries();
+
+        $this->assertEquals([
+            ['code' => 'AF', 'name' => 'Afghanistan'],
+            ['code' => 'NG', 'name' => 'Nigeria'],
+        ], $result);
     }
 }

@@ -27,6 +27,8 @@ Route::prefix('v1')->group(function () {
         Route::post('/login', [AuthController::class, 'login']);
         Route::post('/verify-otp', [AuthController::class, 'verifyOtp']);
         Route::post('/resend-otp', [AuthController::class, 'resendOtp']);
+        Route::post('/forgot-password', [AuthController::class, 'forgotPassword']);
+        Route::post('/reset-password', [AuthController::class, 'resetPassword']);
     });
 
     Route::middleware('throttle:30,1')->group(function () {
@@ -103,7 +105,7 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('customers', CustomerController::class);
 
             // Products
-            Route::apiResource('products', ProductController::class);
+            Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show']);
         });
     });
 });

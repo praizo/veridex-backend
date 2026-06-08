@@ -34,6 +34,10 @@ class Invoice extends Model
         'delivery_period_end' => 'date',
         'status' => InvoiceStatus::class,
         'payment_status' => PaymentStatus::class,
+        'seller_snapshot' => 'array',
+        'buyer_snapshot' => 'array',
+        'line_snapshot' => 'array',
+        'tax_snapshot' => 'array',
     ];
 
     protected static function booted()
@@ -99,6 +103,62 @@ class Invoice extends Model
     public function nrsSubmissions(): HasMany
     {
         return $this->hasMany(NrsSubmission::class);
+    }
+
+    public function captureImmutableSnapshot(): void
+    {
+        if ($this->seller_snapshot || $this->buyer_snapshot || $this->line_snapshot || $this->tax_snapshot) {
+            return;
+        }
+
+        $this->loadMissing(['organization', 'customer', 'lines', 'taxTotals']);
+
+        $this->forceFill([
+            'seller_snapshot' => $this->organization ? [
+                'id' => $this->organization->id,
+                'name' => $this->organization->name,
+                'tin' => $this->organization->tin,
+                'email' => $this->organization->email,
+                'service_id' => $this->organization->service_id,
+                'nrs_business_id' => $this->organization->nrs_business_id,
+            ] : null,
+            'buyer_snapshot' => $this->customer ? [
+                'id' => $this->customer->id,
+                'uuid' => $this->customer->uuid,
+                'name' => $this->customer->name,
+                'type' => $this->customer->type,
+                'tin' => $this->customer->tin,
+                'email' => $this->customer->email,
+                'telephone' => $this->customer->telephone,
+                'street_name' => $this->customer->street_name,
+                'city_name' => $this->customer->city_name,
+                'postal_zone' => $this->customer->postal_zone,
+                'country_code' => $this->customer->country_code,
+            ] : null,
+            'line_snapshot' => $this->lines->map(fn ($line) => $line->only([
+                'line_id',
+                'invoiced_quantity',
+                'line_extension_amount',
+                'item_name',
+                'item_description',
+                'hsn_code',
+                'product_category',
+                'item_standard_id',
+                'price_amount',
+                'price_base_quantity',
+                'unit_code',
+                'tax_category_id',
+                'tax_percent',
+                'tax_scheme_id',
+            ]))->values()->all(),
+            'tax_snapshot' => $this->taxTotals->map(fn ($taxTotal) => $taxTotal->only([
+                'tax_amount',
+                'taxable_amount',
+                'tax_category_id',
+                'tax_percent',
+                'tax_scheme_id',
+            ]))->values()->all(),
+        ])->save();
     }
 
     /**

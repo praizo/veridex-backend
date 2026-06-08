@@ -5,19 +5,42 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
-use App\Models\OtpCode;
 use App\Models\User;
+use App\Services\OperationalMetricService;
 use App\Services\OtpService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Str;
+use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
     public function __construct(
         private readonly OtpService $otpService,
+        private readonly OperationalMetricService $metrics,
     ) {}
+
+    private function userPayload(User $user): array
+    {
+        $user->load('currentOrganization');
+        $organizationId = $user->currentOrganizationId();
+
+        $role = $organizationId
+            ? $user->organizations()
+                ->where('organization_id', $organizationId)
+                ->first()
+                ?->pivot
+                ?->role
+            : null;
+
+        return array_merge($user->toArray(), [
+            'current_organization_role' => $role,
+        ]);
+    }
 
     /**
      * Register — validates data, stores it as OTP payload, sends OTP email.
@@ -27,8 +50,23 @@ class AuthController extends Controller
     {
         $validated = $request->validated();
 
-        // Store registration data as payload in the OTP record
-        $this->otpService->generate($validated['email'], 'registration', $validated);
+        $existingUser = User::where('email', $validated['email'])->first();
+        if ($existingUser?->email_verified_at) {
+            throw ValidationException::withMessages([
+                'email' => ['This email address is already registered.'],
+            ]);
+        }
+
+        $user = User::updateOrCreate(
+            ['email' => $validated['email']],
+            [
+                'name' => $validated['name'],
+                'password' => Hash::make($validated['password']),
+                'email_verified_at' => null,
+            ]
+        );
+
+        $this->otpService->generate($user->email, 'registration');
 
         return response()->json([
             'message' => 'A verification code has been sent to your email.',
@@ -44,15 +82,29 @@ class AuthController extends Controller
     public function login(LoginRequest $request): JsonResponse
     {
         $validated = $request->validated();
+        $throttleKey = $this->loginThrottleKey($request);
+
+        if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            return response()->json([
+                'message' => 'Too many failed login attempts. Please try again later.',
+                'retry_after' => RateLimiter::availableIn($throttleKey),
+            ], 429);
+        }
 
         $user = User::where('email', $validated['email'])->first();
 
         if (! $user || ! Hash::check($validated['password'], $user->password)) {
+            RateLimiter::hit($throttleKey, 900);
+            $this->metrics->increment('auth_failure_spikes', 20, [
+                'ip' => $request->ip(),
+            ]);
+
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
             ]);
         }
 
+        RateLimiter::clear($throttleKey);
         $this->otpService->generate($user->email, 'login');
 
         return response()->json([
@@ -86,34 +138,28 @@ class AuthController extends Controller
         }
 
         if ($request->type === 'registration') {
-            $payload = $otp->payload;
+            $user = User::where('email', $request->email)->firstOrFail();
+            $user->forceFill(['email_verified_at' => now()])->save();
 
-            // Check if user was already created (e.g., OTP resend race condition)
-            $user = User::where('email', $payload['email'])->first();
-
-            if (! $user) {
-                $user = User::create([
-                    'name' => $payload['name'],
-                    'email' => $payload['email'],
-                    'password' => Hash::make($payload['password']),
-                ]);
+            auth('web')->login($user);
+            if ($request->hasSession()) {
+                $request->session()->regenerate();
             }
 
-            $token = $user->createToken('auth_token')->plainTextToken;
-
             return response()->json([
-                'user' => $user->load('currentOrganization'),
-                'token' => $token,
+                'user' => $this->userPayload($user),
             ], 201);
         }
 
         // Login flow
         $user = User::where('email', $request->email)->firstOrFail();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        auth('web')->login($user);
+        if ($request->hasSession()) {
+            $request->session()->regenerate();
+        }
 
         return response()->json([
-            'user' => $user->load('currentOrganization'),
-            'token' => $token,
+            'user' => $this->userPayload($user),
         ]);
     }
 
@@ -127,34 +173,102 @@ class AuthController extends Controller
             'type' => ['required', 'in:registration,login'],
         ]);
 
-        // For registration, try to find existing payload
-        $payload = null;
-        if ($request->type === 'registration') {
-            $existingOtp = OtpCode::where('email', $request->email)
-                ->where('type', 'registration')
-                ->whereNotNull('payload')
-                ->latest()
-                ->first();
-
-            $payload = $existingOtp?->payload;
+        $throttleKey = 'otp-resend:'.$request->type.':'.Str::lower($request->email).'|'.$request->ip();
+        if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
+            return response()->json([
+                'message' => 'Too many OTP resend attempts. Please wait before requesting another code.',
+                'retry_after' => RateLimiter::availableIn($throttleKey),
+            ], 429);
         }
 
-        $this->otpService->generate($request->email, $request->type, $payload);
+        if ($request->type === 'registration') {
+            $user = User::where('email', $request->email)->first();
+            if (! $user || $user->email_verified_at) {
+                throw ValidationException::withMessages([
+                    'email' => ['No pending registration verification was found.'],
+                ]);
+            }
+        } else {
+            if (! User::where('email', $request->email)->exists()) {
+                throw ValidationException::withMessages([
+                    'email' => ['No account was found for this email address.'],
+                ]);
+            }
+        }
+
+        RateLimiter::hit($throttleKey, 60);
+        $this->otpService->generate($request->email, $request->type);
 
         return response()->json([
             'message' => 'A new verification code has been sent.',
         ]);
     }
 
-    public function logout(): JsonResponse
+    public function forgotPassword(Request $request): JsonResponse
     {
-        request()->user()->currentAccessToken()->delete();
+        $request->validate([
+            'email' => ['required', 'email'],
+        ]);
+
+        $status = Password::sendResetLink($request->only('email'));
+
+        return response()->json([
+            'message' => __($status === Password::RESET_LINK_SENT ? $status : 'If the email exists, a password reset link has been sent.'),
+        ], $status === Password::RESET_THROTTLED ? 429 : 200);
+    }
+
+    public function resetPassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'token' => ['required', 'string'],
+            'email' => ['required', 'email'],
+            'password' => ['required', 'string', PasswordRule::min(8)->letters()->mixedCase()->numbers()->symbols(), 'confirmed'],
+        ]);
+
+        $status = Password::reset(
+            $request->only('email', 'password', 'password_confirmation', 'token'),
+            function (User $user, string $password): void {
+                $user->forceFill([
+                    'password' => Hash::make($password),
+                    'remember_token' => Str::random(60),
+                ])->save();
+
+                $user->tokens()->delete();
+            }
+        );
+
+        if ($status !== Password::PASSWORD_RESET) {
+            throw ValidationException::withMessages([
+                'email' => [__($status)],
+            ]);
+        }
+
+        return response()->json([
+            'message' => __($status),
+        ]);
+    }
+
+    public function logout(Request $request): JsonResponse
+    {
+        if ($request->user()->currentAccessToken()) {
+            $request->user()->currentAccessToken()->delete();
+        }
+
+        auth('web')->logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json(['message' => 'Logged out successfully']);
     }
 
     public function me(): JsonResponse
     {
-        return response()->json(request()->user()->load('currentOrganization'));
+        return response()->json($this->userPayload(request()->user()));
+    }
+
+    private function loginThrottleKey(Request $request): string
+    {
+        return 'login:'.Str::lower((string) $request->input('email')).'|'.$request->ip();
     }
 }

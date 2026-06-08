@@ -10,6 +10,7 @@ use App\Models\Invoice;
 use App\Models\NrsSubmission;
 use App\Services\ActivityLogService;
 use App\Services\InvoiceStateService;
+use App\Support\SensitiveDataRedactor;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
@@ -19,7 +20,8 @@ class NrsInvoiceService
         protected NrsClient $client,
         protected NrsPayloadBuilder $payloadBuilder,
         protected ActivityLogService $activityLog,
-        protected InvoiceStateService $stateService
+        protected InvoiceStateService $stateService,
+        protected SensitiveDataRedactor $redactor
     ) {}
 
     /**
@@ -73,7 +75,7 @@ class NrsInvoiceService
             return $result;
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::VALIDATION_FAILED, request()->user(), 'NRS Validation Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_VALIDATE_FAIL', $invoice, 'Failed to validate invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
+            $this->activityLog->log(request()->user(), 'NRS_VALIDATE_FAIL', $invoice, 'Failed to validate invoice on NRS.', ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -90,7 +92,7 @@ class NrsInvoiceService
             $this->activityLog->log(request()->user(), 'NRS_SIGN', $invoice, "Successfully signed invoice. IRN: {$invoice->irn}");
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::SIGN_FAILED, request()->user(), 'NRS Signing Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
+            $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS.', ['raw_error' => $e->getMessage()]);
             throw $e;
         }
 
@@ -125,7 +127,7 @@ class NrsInvoiceService
             return $result;
         } catch (\Throwable $e) {
             $this->stateService->transition($invoice, InvoiceStatus::TRANSMIT_FAILED, request()->user(), 'NRS Transmit Failed', null, ['error' => $e->getMessage()]);
-            $this->activityLog->log(request()->user(), 'NRS_TRANSMIT_FAIL', $invoice, 'Failed to transmit invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
+            $this->activityLog->log(request()->user(), 'NRS_TRANSMIT_FAIL', $invoice, 'Failed to transmit invoice on NRS.', ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -183,7 +185,7 @@ class NrsInvoiceService
                 request()->user(),
                 'NRS_PAYMENT_UPDATE_FAIL',
                 $invoice,
-                'Failed to update payment status on NRS: '.$e->getMessage(),
+                'Failed to update payment status on NRS.',
                 ['raw_error' => $e->getMessage()]
             );
             throw $e;
@@ -207,7 +209,7 @@ class NrsInvoiceService
 
             return $result;
         } catch (\Exception $e) {
-            $this->activityLog->log(request()->user(), 'NRS_CONFIRM_FAIL', $invoice, 'Failed to confirm invoice on NRS: '.$e->getMessage(), ['raw_error' => $e->getMessage()]);
+            $this->activityLog->log(request()->user(), 'NRS_CONFIRM_FAIL', $invoice, 'Failed to confirm invoice on NRS.', ['raw_error' => $e->getMessage()]);
             throw $e;
         }
     }
@@ -236,18 +238,27 @@ class NrsInvoiceService
             'action' => $action,
             'status' => NrsSubmissionStatus::PENDING,
             'idempotency_key' => $idempotencyKey,
-            'request_payload' => $payload,
+            'request_payload' => $this->redactor->redact($payload),
             'submitted_at' => now(),
         ]);
 
         $headers = ['X-Idempotency-Key' => $idempotencyKey];
+        $debugContext = [
+            'submission_id' => $submission->id,
+            'invoice_id' => $invoice->id,
+            'invoice_uuid' => $invoice->uuid,
+            'irn' => $invoice->irn,
+            'action' => $action->value,
+            'endpoint' => $endpoint,
+            'idempotency_key' => $idempotencyKey,
+        ];
 
         try {
             $response = match ($action) {
-                NrsAction::TRANSMIT => $this->client->post($endpoint, [], $headers),
-                NrsAction::CONFIRM => $this->client->patch($endpoint, [], $headers),
-                NrsAction::UPDATE_PAYMENT => $this->client->patch($endpoint, $payload, $headers),
-                default => $this->client->post($endpoint, $payload, $headers),
+                NrsAction::TRANSMIT => $this->client->post($endpoint, [], $headers, $debugContext),
+                NrsAction::CONFIRM => $this->client->patch($endpoint, [], $headers, $debugContext),
+                NrsAction::UPDATE_PAYMENT => $this->client->patch($endpoint, $payload, $headers, $debugContext),
+                default => $this->client->post($endpoint, $payload, $headers, $debugContext),
             };
 
             $responseData = $response->json();
@@ -256,7 +267,7 @@ class NrsInvoiceService
             $submission->update([
                 'status' => NrsSubmissionStatus::SUCCESS,
                 'http_status_code' => $response->status(),
-                'response_payload' => $responseData,
+                'response_payload' => $this->redactor->redact($responseData),
                 'responded_at' => now(),
             ]);
 
@@ -272,8 +283,8 @@ class NrsInvoiceService
             $submission->update([
                 'status' => NrsSubmissionStatus::FAILED,
                 'http_status_code' => $e->getCode() ?: 500,
-                'response_payload' => ['error' => $e->getMessage()],
-                'error_message' => $e->getMessage(),
+                'response_payload' => $this->redactor->redact(['error' => $e->getMessage()]),
+                'error_message' => 'NRS request failed. See redacted response payload for details.',
                 'responded_at' => now(),
             ]);
 

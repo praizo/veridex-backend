@@ -6,6 +6,8 @@ use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use App\Models\NrsSubmission;
 use App\Services\InvoiceStateService;
+use App\Services\OperationalMetricService;
+use App\Support\SensitiveDataRedactor;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\Dispatchable;
@@ -31,24 +33,14 @@ class ProcessNrsWebhookJob implements ShouldQueue
         protected array $payload,
     ) {}
 
-    public function handle(InvoiceStateService $stateService): void
+    public function handle(InvoiceStateService $stateService, SensitiveDataRedactor $redactor, OperationalMetricService $metrics): void
     {
+        $redactedPayload = $redactor->redact($this->payload);
         $message = strtoupper(trim($this->payload['message'] ?? ''));
         $irn = $this->payload['irn'] ?? null;
 
         if (! $message || ! $irn) {
-            Log::warning('NRS Webhook Job: Missing message or IRN in payload', $this->payload);
-
-            return;
-        }
-
-        // --- Idempotency Check ---
-        // Use message + irn as the key; NRS sends stateless, event-driven notifications
-        $idempotencyKey = "webhook_{$message}_{$irn}";
-
-        $exists = NrsSubmission::where('idempotency_key', $idempotencyKey)->exists();
-        if ($exists) {
-            Log::info("NRS Webhook Job: Duplicate event skipped [{$idempotencyKey}]");
+            Log::warning('NRS Webhook Job: Missing message or IRN in payload', $redactedPayload);
 
             return;
         }
@@ -58,6 +50,27 @@ class ProcessNrsWebhookJob implements ShouldQueue
 
         if (! $invoice) {
             Log::warning("NRS Webhook Job: Invoice not found for IRN: {$irn}");
+
+            return;
+        }
+
+        // --- Atomic Idempotency Check ---
+        // Use message + irn as the key; NRS sends stateless, event-driven notifications.
+        $idempotencyKey = "webhook_{$message}_{$irn}";
+        $submission = NrsSubmission::firstOrCreate([
+            'idempotency_key' => $idempotencyKey,
+        ], [
+            'invoice_id' => $invoice->id,
+            'user_id' => null,
+            'action' => 'webhook',
+            'status' => 'pending',
+            'request_payload' => $redactedPayload,
+            'submitted_at' => now(),
+        ]);
+
+        if (! $submission->wasRecentlyCreated) {
+            $metrics->increment('webhook_duplicate_count');
+            Log::info("NRS Webhook Job: Duplicate event skipped [{$idempotencyKey}]");
 
             return;
         }
@@ -81,15 +94,10 @@ class ProcessNrsWebhookJob implements ShouldQueue
             Log::warning("NRS Webhook Job: Unknown message status [{$message}] for IRN: {$irn}");
 
             // Still record it so we have a trail
-            NrsSubmission::create([
-                'invoice_id' => $invoice->id,
-                'user_id' => null,
-                'idempotency_key' => $idempotencyKey,
+            $submission->update([
                 'action' => 'webhook_unknown',
                 'status' => 'failed',
-                'request_payload' => $this->payload,
                 'error_message' => "Unknown webhook message status: {$message}",
-                'submitted_at' => now(),
                 'responded_at' => now(),
             ]);
 
@@ -106,19 +114,13 @@ class ProcessNrsWebhookJob implements ShouldQueue
                 user: null,
                 trigger: 'nrs_webhook',
                 note: $note,
-                metadata: $this->payload,
+                metadata: $redactedPayload,
             );
 
             // Record successful webhook processing
-            NrsSubmission::create([
-                'invoice_id' => $invoice->id,
-                'user_id' => null,
-                'idempotency_key' => $idempotencyKey,
-                'action' => 'webhook',
+            $submission->update([
                 'status' => 'success',
-                'request_payload' => $this->payload,
                 'response_payload' => ['transitioned_to' => $targetStatus->value],
-                'submitted_at' => now(),
                 'responded_at' => now(),
             ]);
 
@@ -126,15 +128,11 @@ class ProcessNrsWebhookJob implements ShouldQueue
         } catch (\Exception $e) {
             Log::error("NRS Webhook Job: Failed to process message [{$message}] for IRN [{$irn}]: {$e->getMessage()}");
 
-            NrsSubmission::create([
-                'invoice_id' => $invoice->id,
-                'user_id' => null,
-                'idempotency_key' => $idempotencyKey,
-                'action' => 'webhook',
+            $metrics->increment('invoice_state_transition_failures');
+
+            $submission->update([
                 'status' => 'failed',
-                'request_payload' => $this->payload,
                 'error_message' => $e->getMessage(),
-                'submitted_at' => now(),
                 'responded_at' => now(),
             ]);
 

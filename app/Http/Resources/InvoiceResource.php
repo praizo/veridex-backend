@@ -24,6 +24,16 @@ class InvoiceResource extends JsonResource
             'tax_exclusive_amount' => (float) $this->tax_exclusive_amount,
             'tax_inclusive_amount' => (float) $this->tax_inclusive_amount,
             'payable_amount' => (float) $this->payable_amount,
+            'seller_snapshot' => $this->seller_snapshot,
+            'buyer_snapshot' => $this->buyer_snapshot,
+            'line_snapshot' => $this->line_snapshot,
+            'tax_snapshot' => $this->tax_snapshot,
+            'pdf_hash' => $this->pdf_hash,
+            'xml_hash' => $this->xml_hash,
+            'official_pdf_hash' => $this->official_pdf_hash,
+            'official_xml_hash' => $this->official_xml_hash,
+            'has_official_pdf' => (bool) $this->official_pdf_path,
+            'has_official_xml' => (bool) $this->official_xml_path,
 
             // Relationships
             'organization' => $this->whenLoaded('organization'),

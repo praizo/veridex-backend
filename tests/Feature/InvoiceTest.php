@@ -2,10 +2,12 @@
 
 namespace Tests\Feature;
 
+use App\Enums\InvoiceStatus;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\InvoiceStateService;
 use App\Services\Nrs\NrsInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;
@@ -96,7 +98,7 @@ class InvoiceTest extends TestCase
             ->assertJsonPath('data.invoice_kind', 'B2B');
 
         $this->assertDatabaseHas('invoices', [
-            'invoice_number' => 'INV-001',
+            'invoice_number' => 'INV-'.now()->format('Y').'-000001',
             'invoice_kind' => 'B2B',
         ]);
     }
@@ -148,9 +150,141 @@ class InvoiceTest extends TestCase
             ->assertJsonPath('data.invoice_kind', 'B2C');
 
         $this->assertDatabaseHas('invoices', [
-            'invoice_number' => 'INV-002',
+            'invoice_number' => 'INV-'.now()->format('Y').'-000001',
             'invoice_kind' => 'B2C',
         ]);
+    }
+
+    public function test_invoice_numbers_are_server_controlled_and_sequential(): void
+    {
+        $firstPayload = $this->validInvoicePayload([
+            'invoice_number' => 'CLIENT-CANNOT-SET-1',
+        ]);
+        $secondPayload = $this->validInvoicePayload([
+            'invoice_number' => 'CLIENT-CANNOT-SET-2',
+        ]);
+
+        $firstResponse = $this->actingAs($this->user)->postJson('/api/v1/invoices', $firstPayload);
+        $secondResponse = $this->actingAs($this->user)->postJson('/api/v1/invoices', $secondPayload);
+
+        $period = now()->format('Y');
+
+        $firstResponse->assertStatus(201)
+            ->assertJsonPath('data.invoice_number', "INV-{$period}-000001");
+        $secondResponse->assertStatus(201)
+            ->assertJsonPath('data.invoice_number', "INV-{$period}-000002");
+
+        $this->assertDatabaseMissing('invoices', ['invoice_number' => 'CLIENT-CANNOT-SET-1']);
+        $this->assertDatabaseMissing('invoices', ['invoice_number' => 'CLIENT-CANNOT-SET-2']);
+    }
+
+    public function test_client_supplied_totals_are_recalculated_server_side(): void
+    {
+        $payload = $this->validInvoicePayload([
+            'legal_monetary_total' => [
+                'line_extension_amount' => 1,
+                'tax_exclusive_amount' => 1,
+                'tax_inclusive_amount' => 1,
+                'payable_amount' => 1,
+            ],
+            'tax_totals' => [
+                [
+                    'tax_amount' => 1,
+                    'taxable_amount' => 1,
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ],
+            ],
+            'lines' => [
+                [
+                    'line_id' => '1',
+                    'invoiced_quantity' => 2,
+                    'line_extension_amount' => 1,
+                    'item_name' => 'Server Priced Product',
+                    'price_amount' => 2000,
+                    'hsn_code' => '123456',
+                    'product_category' => 'Test Category',
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ],
+            ],
+        ]);
+
+        $response = $this->actingAs($this->user)->postJson('/api/v1/invoices', $payload);
+
+        $response->assertStatus(201)
+            ->assertJsonPath('data.line_extension_amount', 4000)
+            ->assertJsonPath('data.tax_exclusive_amount', 4000)
+            ->assertJsonPath('data.tax_inclusive_amount', 4300)
+            ->assertJsonPath('data.payable_amount', 4300);
+
+        $invoice = Invoice::firstOrFail();
+        $this->assertSame('4000.00', $invoice->lines()->firstOrFail()->line_extension_amount);
+        $this->assertSame('300.00', $invoice->taxTotals()->firstOrFail()->tax_amount);
+    }
+
+    public function test_signed_invoice_snapshots_do_not_change_when_master_data_changes(): void
+    {
+        $this->actingAs($this->user)->postJson('/api/v1/invoices', $this->validInvoicePayload())
+            ->assertStatus(201);
+
+        $invoice = Invoice::with(['customer', 'lines', 'taxTotals', 'organization'])->firstOrFail();
+        $stateService = app(InvoiceStateService::class);
+
+        $stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATED, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::SIGNED, $this->user, 'test');
+
+        $signedInvoice = $invoice->fresh();
+        $buyerSnapshot = $signedInvoice->buyer_snapshot;
+        $lineSnapshot = $signedInvoice->line_snapshot;
+        $taxSnapshot = $signedInvoice->tax_snapshot;
+
+        $this->customer->update(['name' => 'Changed Customer']);
+        $signedInvoice->lines()->first()->update(['item_name' => 'Changed Line']);
+        $signedInvoice->taxTotals()->first()->update(['tax_amount' => 999]);
+
+        $unchangedInvoice = $signedInvoice->fresh();
+        $this->assertSame($buyerSnapshot['name'], $unchangedInvoice->buyer_snapshot['name']);
+        $this->assertSame($lineSnapshot[0]['item_name'], $unchangedInvoice->line_snapshot[0]['item_name']);
+        $this->assertSame($taxSnapshot[0]['tax_amount'], $unchangedInvoice->tax_snapshot[0]['tax_amount']);
+    }
+
+    public function test_download_for_signed_invoice_uses_local_pdf_generation(): void
+    {
+        Http::fake([
+            '*' => Http::response(['message' => 'NRS should not be called for local PDF download'], 500),
+        ]);
+
+        $invoice = Invoice::create([
+            'organization_id' => $this->organization->id,
+            'customer_id' => $this->customer->id,
+            'invoice_number' => 'INV-2026-000001',
+            'status' => 'signed',
+            'payment_status' => 'PENDING',
+            'issue_date' => now(),
+            'irn' => 'TEST-IRN-LOCAL-PDF',
+            'line_extension_amount' => 1000,
+            'tax_exclusive_amount' => 1000,
+            'tax_inclusive_amount' => 1075,
+            'payable_amount' => 1075,
+        ]);
+
+        $response = $this->actingAs($this->user)
+            ->get("/api/v1/invoices/{$invoice->uuid}/download");
+
+        $response->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $invoice = $invoice->fresh();
+        $this->assertNotNull($invoice->pdf_hash);
+        $this->assertNull($invoice->official_pdf_path);
+        $this->assertNull($invoice->official_pdf_hash);
+        $this->assertNull($invoice->official_xml_path);
+        $this->assertNull($invoice->official_xml_hash);
+
+        Http::assertNothingSent();
     }
 
     public function test_can_update_payment_status_locally_for_draft_invoice(): void
@@ -291,5 +425,45 @@ class InvoiceTest extends TestCase
             'subject_id' => $invoice->id,
             'action' => 'NRS_PAYMENT_UPDATE_SKIP',
         ]);
+    }
+
+    private function validInvoicePayload(array $overrides = []): array
+    {
+        return array_replace_recursive([
+            'customer_id' => $this->customer->uuid,
+            'invoice_number' => 'CLIENT-SUPPLIED',
+            'invoice_type_code' => '380',
+            'invoice_kind' => 'B2B',
+            'issue_date' => now()->format('Y-m-d'),
+            'document_currency_code' => 'NGN',
+            'payment_status' => 'PENDING',
+            'legal_monetary_total' => [
+                'line_extension_amount' => 1000,
+                'tax_exclusive_amount' => 1000,
+                'tax_inclusive_amount' => 1075,
+                'payable_amount' => 1075,
+            ],
+            'lines' => [
+                [
+                    'line_id' => '1',
+                    'invoiced_quantity' => 1,
+                    'line_extension_amount' => 1000,
+                    'item_name' => 'Test Product',
+                    'price_amount' => 1000,
+                    'hsn_code' => '123456',
+                    'product_category' => 'Test Category',
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ],
+            ],
+            'tax_totals' => [
+                [
+                    'tax_amount' => 75,
+                    'taxable_amount' => 1000,
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ],
+            ],
+        ], $overrides);
     }
 }

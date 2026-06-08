@@ -8,6 +8,7 @@ use App\Enums\InvoiceStatus;
 use App\Exceptions\NrsApiException;
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\InvoiceSequence;
 use App\Services\Nrs\NrsResourceService;
 use Illuminate\Support\Facades\DB;
 
@@ -29,8 +30,11 @@ class InvoiceService
 
         return DB::transaction(function () use ($dto) {
             // 1. Create the root Invoice record
+            $calculated = $this->calculateAuthoritativeAmounts($dto);
             $invoiceData = $dto->toInvoiceArray();
+            $invoiceData = array_merge($invoiceData, $calculated['totals']);
             $invoiceData['status'] = InvoiceStatus::DRAFT;
+            $invoiceData['invoice_number'] = $this->generateNextNumber($dto->organization_id);
 
             if (empty($invoiceData['invoice_kind'])) {
                 $customer = Customer::find($dto->customer_id);
@@ -48,13 +52,13 @@ class InvoiceService
             $invoice = Invoice::create($invoiceData);
 
             // 2. Create Invoice Lines
-            foreach ($dto->lines as $lineDto) {
-                $invoice->lines()->create($lineDto->toArray());
+            foreach ($calculated['lines'] as $line) {
+                $invoice->lines()->create($line);
             }
 
             // 3. Create Tax Totals
-            foreach ($dto->tax_totals as $taxDto) {
-                $invoice->taxTotals()->create($taxDto->toArray());
+            foreach ($calculated['tax_totals'] as $taxTotal) {
+                $invoice->taxTotals()->create($taxTotal);
             }
 
             // 4. Create Payment Means
@@ -123,6 +127,98 @@ class InvoiceService
     }
 
     /**
+     * Recalculate invoice money server-side so client totals remain previews only.
+     */
+    protected function calculateAuthoritativeAmounts(CreateInvoiceDTO $dto): array
+    {
+        $lineExtensionAmount = 0.0;
+        $taxGroups = [];
+        $lines = [];
+
+        foreach ($dto->lines as $lineDto) {
+            $line = $lineDto->toArray();
+            $quantity = (float) $lineDto->invoiced_quantity;
+            $price = (float) $lineDto->price_amount;
+            $lineTotal = $this->roundMoney($quantity * $price);
+            $taxPercent = (float) ($lineDto->tax_percent ?? 0);
+            $taxAmount = $this->roundMoney($lineTotal * ($taxPercent / 100));
+
+            $line['line_extension_amount'] = $lineTotal;
+            $lines[] = $line;
+
+            $lineExtensionAmount += $lineTotal;
+
+            $taxKey = implode('|', [
+                $lineDto->tax_category_id ?? '',
+                (string) $taxPercent,
+                $lineDto->tax_scheme_id ?? '',
+            ]);
+
+            if (! isset($taxGroups[$taxKey])) {
+                $taxGroups[$taxKey] = [
+                    'tax_amount' => 0.0,
+                    'taxable_amount' => 0.0,
+                    'tax_category_id' => $lineDto->tax_category_id,
+                    'tax_percent' => $taxPercent,
+                    'tax_scheme_id' => $lineDto->tax_scheme_id,
+                ];
+            }
+
+            $taxGroups[$taxKey]['taxable_amount'] += $lineTotal;
+            $taxGroups[$taxKey]['tax_amount'] += $taxAmount;
+        }
+
+        $allowanceTotal = 0.0;
+        $chargeTotal = 0.0;
+        foreach ($dto->allowance_charges as $allowanceCharge) {
+            if ($allowanceCharge->charge_indicator) {
+                $chargeTotal += (float) $allowanceCharge->amount;
+            } else {
+                $allowanceTotal += (float) $allowanceCharge->amount;
+            }
+        }
+
+        $lineExtensionAmount = $this->roundMoney($lineExtensionAmount);
+        $allowanceTotal = $this->roundMoney($allowanceTotal);
+        $chargeTotal = $this->roundMoney($chargeTotal);
+        $prepaidAmount = $this->roundMoney($dto->legal_monetary_total->prepaid_amount ?? 0);
+        $roundingAmount = $this->roundMoney($dto->legal_monetary_total->payable_rounding_amount ?? 0);
+        $taxExclusiveAmount = $this->roundMoney($lineExtensionAmount - $allowanceTotal + $chargeTotal);
+
+        $taxTotals = array_map(fn ($taxTotal) => [
+            'tax_amount' => $this->roundMoney($taxTotal['tax_amount']),
+            'taxable_amount' => $this->roundMoney($taxTotal['taxable_amount']),
+            'tax_category_id' => $taxTotal['tax_category_id'],
+            'tax_percent' => $taxTotal['tax_percent'],
+            'tax_scheme_id' => $taxTotal['tax_scheme_id'],
+        ], array_values($taxGroups));
+
+        $totalTaxAmount = array_sum(array_column($taxTotals, 'tax_amount'));
+        $taxInclusiveAmount = $this->roundMoney($taxExclusiveAmount + $totalTaxAmount);
+        $payableAmount = $this->roundMoney($taxInclusiveAmount - $prepaidAmount + $roundingAmount);
+
+        return [
+            'lines' => $lines,
+            'tax_totals' => $taxTotals,
+            'totals' => [
+                'line_extension_amount' => $lineExtensionAmount,
+                'tax_exclusive_amount' => $taxExclusiveAmount,
+                'tax_inclusive_amount' => $taxInclusiveAmount,
+                'payable_amount' => $payableAmount,
+                'allowance_total_amount' => $allowanceTotal,
+                'charge_total_amount' => $chargeTotal,
+                'prepaid_amount' => $prepaidAmount,
+                'payable_rounding_amount' => $roundingAmount,
+            ],
+        ];
+    }
+
+    protected function roundMoney(float $amount): float
+    {
+        return round($amount, 2);
+    }
+
+    /**
      * Find an invoice by ID, ensuring organization scope.
      */
     public function findById(int $id, int $organizationId): ?Invoice
@@ -130,5 +226,36 @@ class InvoiceService
         return Invoice::where('id', $id)
             ->where('organization_id', $organizationId)
             ->first();
+    }
+
+    /**
+     * Generate the next sequential invoice number for the organization.
+     */
+    public function generateNextNumber(int $orgId, string $prefix = 'INV'): string
+    {
+        $period = now()->format('Y');
+
+        $sequence = InvoiceSequence::where('organization_id', $orgId)
+            ->where('prefix', $prefix)
+            ->where('period', $period)
+            ->lockForUpdate()
+            ->first();
+
+        if (! $sequence) {
+            InvoiceSequence::create([
+                'organization_id' => $orgId,
+                'prefix' => $prefix,
+                'period' => $period,
+                'next_number' => 2,
+            ]);
+            $number = 1;
+        } else {
+            $number = $sequence->next_number;
+            $sequence->increment('next_number');
+        }
+
+        $padded = str_pad((string) $number, 6, '0', STR_PAD_LEFT);
+
+        return "{$prefix}-{$period}-{$padded}";
     }
 }

@@ -16,6 +16,7 @@ class OtpService
         OtpCode::where('email', $email)
             ->where('type', $type)
             ->whereNull('verified_at')
+            ->whereNull('consumed_at')
             ->delete();
 
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
@@ -25,6 +26,8 @@ class OtpService
             'code' => $code,
             'type' => $type,
             'payload' => $payload,
+            'attempts' => 0,
+            'max_attempts' => 5,
             'expires_at' => now()->addMinutes(5),
         ]);
 
@@ -40,20 +43,27 @@ class OtpService
     public function verify(string $email, string $code, string $type): ?OtpCode
     {
         $otp = OtpCode::where('email', $email)
-            ->where('code', $code)
             ->where('type', $type)
             ->whereNull('verified_at')
+            ->whereNull('consumed_at')
+            ->latest()
             ->first();
 
         if (! $otp) {
             return null;
         }
 
-        if ($otp->isExpired()) {
+        if ($otp->isExpired() || ! $otp->hasAttemptsRemaining()) {
             return null;
         }
 
-        $otp->markVerified();
+        if (! hash_equals($otp->code, $code)) {
+            $otp->recordFailedAttempt();
+
+            return null;
+        }
+
+        $otp->markConsumed();
 
         return $otp;
     }

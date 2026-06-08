@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Response;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
 
 class InvoicePdfService
@@ -37,6 +38,16 @@ class InvoicePdfService
         // Output as A4
         $pdf->setPaper('a4', 'portrait');
 
-        return $pdf->stream("invoice_{$invoice->invoice_number}.pdf");
+        $pdfBinary = $pdf->output();
+        $status = $invoice->status?->value ?? $invoice->status;
+
+        if (in_array($status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed']) && ! $invoice->pdf_hash) {
+            $invoice->forceFill(['pdf_hash' => hash('sha256', $pdfBinary)])->save();
+        }
+
+        return Response::make($pdfBinary, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="invoice_'.$invoice->invoice_number.'.pdf"',
+        ]);
     }
 }

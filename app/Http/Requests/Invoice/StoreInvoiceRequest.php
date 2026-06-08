@@ -16,7 +16,10 @@ class StoreInvoiceRequest extends FormRequest
     protected function prepareForValidation()
     {
         if ($this->has('customer_id') && is_string($this->customer_id)) {
-            $customer = Customer::where('uuid', $this->customer_id)->first();
+            $customer = Customer::where('uuid', $this->customer_id)
+                ->where('organization_id', $this->user()->current_organization_id)
+                ->first();
+
             if ($customer) {
                 $this->merge(['customer_id' => $customer->id]);
             }
@@ -26,12 +29,15 @@ class StoreInvoiceRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'customer_id' => ['required', 'exists:customers,id'],
-            'invoice_number' => [
+            'customer_id' => [
                 'required',
+                Rule::exists('customers', 'id')
+                    ->where('organization_id', $this->user()->current_organization_id),
+            ],
+            'invoice_number' => [
+                'nullable',
                 'string',
                 'max:255',
-                Rule::unique('invoices')->where('organization_id', $this->user()->current_organization_id),
             ],
             'invoice_type_code' => ['required', 'string', 'in:380,381,383,386,396'],
             'invoice_kind' => ['nullable', 'string', 'in:B2B,B2C,B2G'],
@@ -52,11 +58,11 @@ class StoreInvoiceRequest extends FormRequest
             'payment_terms_note' => ['nullable', 'string'],
 
             // Legal Monetary Total
-            'legal_monetary_total' => ['required', 'array'],
-            'legal_monetary_total.line_extension_amount' => ['required', 'numeric'],
-            'legal_monetary_total.tax_exclusive_amount' => ['required', 'numeric'],
-            'legal_monetary_total.tax_inclusive_amount' => ['required', 'numeric'],
-            'legal_monetary_total.payable_amount' => ['required', 'numeric'],
+            'legal_monetary_total' => ['nullable', 'array'],
+            'legal_monetary_total.line_extension_amount' => ['nullable', 'numeric'],
+            'legal_monetary_total.tax_exclusive_amount' => ['nullable', 'numeric'],
+            'legal_monetary_total.tax_inclusive_amount' => ['nullable', 'numeric'],
+            'legal_monetary_total.payable_amount' => ['nullable', 'numeric'],
             'legal_monetary_total.allowance_total_amount' => ['nullable', 'numeric'],
             'legal_monetary_total.charge_total_amount' => ['nullable', 'numeric'],
             'legal_monetary_total.prepaid_amount' => ['nullable', 'numeric'],

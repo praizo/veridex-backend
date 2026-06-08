@@ -3,6 +3,7 @@
 namespace App\Exceptions;
 
 use Exception;
+use Illuminate\Http\JsonResponse;
 use Throwable;
 
 class NrsApiException extends Exception
@@ -18,5 +19,17 @@ class NrsApiException extends Exception
     public function getDetails(): ?array
     {
         return $this->details;
+    }
+
+    public function render($request): JsonResponse
+    {
+        $status = $this->getCode() >= 400 && $this->getCode() < 600 ? $this->getCode() : 422;
+
+        return response()->json([
+            'code' => 'NRS_API_ERROR',
+            'message' => $this->getMessage(),
+            'details' => $this->details,
+            'retryable' => in_array($status, [408, 429, 500, 502, 503, 504], true),
+        ], $status);
     }
 }

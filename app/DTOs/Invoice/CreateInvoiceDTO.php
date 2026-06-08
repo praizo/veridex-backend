@@ -16,7 +16,7 @@ final readonly class CreateInvoiceDTO
     public function __construct(
         public int $organization_id,
         public int $customer_id,
-        public string $invoice_number,
+        public ?string $invoice_number,
         public string $invoice_type_code,
         public string $issue_date,
         public ?string $due_date,
@@ -47,7 +47,16 @@ final readonly class CreateInvoiceDTO
     {
         $validated = $request->validated();
 
-        $legal_monetary_total = new LegalMonetaryTotalDTO(...$validated['legal_monetary_total']);
+        $legal_monetary_total = new LegalMonetaryTotalDTO(...array_merge([
+            'line_extension_amount' => 0,
+            'tax_exclusive_amount' => 0,
+            'tax_inclusive_amount' => 0,
+            'payable_amount' => 0,
+            'allowance_total_amount' => 0,
+            'charge_total_amount' => 0,
+            'prepaid_amount' => 0,
+            'payable_rounding_amount' => 0,
+        ], $validated['legal_monetary_total'] ?? []));
 
         $lines = array_map(fn ($line) => new InvoiceLineDTO(
             line_id: (string) ($line['line_id'] ?? 1),
@@ -74,7 +83,7 @@ final readonly class CreateInvoiceDTO
         return new self(
             organization_id: $request->user()->current_organization_id,
             customer_id: $validated['customer_id'],
-            invoice_number: $validated['invoice_number'],
+            invoice_number: $validated['invoice_number'] ?? null,
             invoice_type_code: $validated['invoice_type_code'] ?? '380',
             issue_date: $validated['issue_date'],
             due_date: $validated['due_date'] ?? null,

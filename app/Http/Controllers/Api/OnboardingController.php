@@ -19,6 +19,24 @@ class OnboardingController extends Controller
         protected NrsClient $nrsClient
     ) {}
 
+    private function userPayload($user): array
+    {
+        $user->load('currentOrganization');
+        $organizationId = $user->currentOrganizationId();
+
+        $role = $organizationId
+            ? $user->organizations()
+                ->where('organization_id', $organizationId)
+                ->first()
+                ?->pivot
+                ?->role
+            : null;
+
+        return array_merge($user->toArray(), [
+            'current_organization_role' => $role,
+        ]);
+    }
+
     /**
      * Complete business onboarding — creates Organization and stamps the user.
      */
@@ -29,7 +47,7 @@ class OnboardingController extends Controller
         if ($user->hasCompletedOnboarding()) {
             return response()->json([
                 'message' => 'Onboarding already completed.',
-                'user' => $user->load('currentOrganization'),
+                'user' => $this->userPayload($user),
             ]);
         }
 
@@ -57,7 +75,7 @@ class OnboardingController extends Controller
 
         return response()->json([
             'message' => 'Onboarding completed successfully.',
-            'user' => $user->fresh()->load('currentOrganization'),
+            'user' => $this->userPayload($user->fresh()),
         ], 201);
     }
 
