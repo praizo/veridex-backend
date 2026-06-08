@@ -6,8 +6,8 @@ use App\Models\Invoice;
 use App\Services\InvoicePdfService;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailable;
+use Illuminate\Mail\Mailables\Address;
 use Illuminate\Mail\Mailables\Attachment;
 use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
@@ -22,8 +22,7 @@ class InvoiceConfirmedMail extends Mailable implements ShouldQueue
      */
     public function __construct(
         public Invoice $invoice
-    ) {
-    }
+    ) {}
 
     /**
      * Get the message envelope.
