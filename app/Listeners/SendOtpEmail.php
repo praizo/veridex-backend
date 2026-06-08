@@ -6,6 +6,7 @@ use App\Events\OtpRequested;
 use App\Mail\OtpMail;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Queue\Middleware\WithoutOverlapping;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Throwable;
@@ -23,6 +24,17 @@ class SendOtpEmail implements ShouldQueue
 
     public function handle(OtpRequested $event): void
     {
+        $deliveryKey = $this->deliveryKey($event);
+
+        if (! Cache::add($deliveryKey, now()->toISOString(), 300)) {
+            Log::info('Duplicate OTP email job skipped', [
+                'email_hash' => hash('sha256', strtolower($event->email)),
+                'type' => $event->type,
+            ]);
+
+            return;
+        }
+
         Log::info('OTP email job started', [
             'email_hash' => hash('sha256', strtolower($event->email)),
             'type' => $event->type,
@@ -46,11 +58,21 @@ class SendOtpEmail implements ShouldQueue
 
     public function failed(OtpRequested $event, Throwable $exception): void
     {
+        Cache::forget($this->deliveryKey($event));
+
         Log::error('OTP email job failed', [
             'email_hash' => hash('sha256', strtolower($event->email)),
             'type' => $event->type,
             'exception' => $exception::class,
             'message' => $exception->getMessage(),
         ]);
+    }
+
+    private function deliveryKey(OtpRequested $event): string
+    {
+        return 'otp-email-delivered:'.hash(
+            'sha256',
+            strtolower($event->email).'|'.$event->type.'|'.$event->code
+        );
     }
 }
