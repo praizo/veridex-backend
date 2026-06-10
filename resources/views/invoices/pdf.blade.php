@@ -30,6 +30,10 @@
             color: #6b7280;
         }
 
+        .primary {
+            color: #0a1d43;
+        }
+
         .label {
             color: #6b7280;
             font-size: 7pt;
@@ -52,15 +56,15 @@
             font-size: 54pt;
             font-weight: 900;
             letter-spacing: 8pt;
-            color: #f1f5f9;
+            color: #f4f6fb;
             z-index: -1;
             text-transform: uppercase;
         }
 
         .top-band {
             border-radius: 12pt;
-            background: #f8fafc;
-            border: 1pt solid #dbe4f3;
+            background: #f4f6fb;
+            border: 1pt solid #dbe3f1;
             color: #0a1d43;
             padding: 0;
             margin-bottom: 18pt;
@@ -79,7 +83,7 @@
             color: #0a1d43;
             padding: 20pt 21pt;
             vertical-align: top;
-            border-left: 1pt solid #dbe4f3;
+            border-left: 1pt solid #dbe3f1;
         }
 
         .header-accent-row {
@@ -92,12 +96,12 @@
         }
 
         .header-accent-soft {
-            background: #dbeafe;
+            background: #c8d6f0;
             width: 24%;
         }
 
         .header-accent-light {
-            background: #eff6ff;
+            background: #f0f4fb;
             width: 12%;
         }
 
@@ -106,13 +110,10 @@
             height: 34pt;
             border-radius: 8pt;
             background: #ffffff;
-            color: #0a1d43;
-            font-size: 18pt;
-            line-height: 34pt;
             text-align: center;
-            font-weight: 900;
             display: inline-block;
             margin-right: 10pt;
+            padding: 5pt;
         }
 
         .brand-name {
@@ -122,16 +123,33 @@
             color: #ffffff;
         }
 
+        .brand-trademark {
+            font-size: 6pt;
+            opacity: .72;
+            vertical-align: top;
+        }
+
         .brand-meta {
-            color: #cbd5e1;
+            color: #c8d6f0;
             font-size: 8pt;
         }
 
-        .brand-strip {
+        .supplier-card {
             margin-top: 13pt;
             padding-top: 10pt;
             border-top: 1pt solid rgba(255,255,255,.18);
-            color: #dbeafe;
+        }
+
+        .supplier-name {
+            color: #ffffff;
+            font-size: 10pt;
+            font-weight: 800;
+            margin-bottom: 3pt;
+        }
+
+        .brand-strip {
+            margin-top: 9pt;
+            color: #c8d6f0;
             font-size: 7pt;
             font-weight: 700;
             letter-spacing: .8pt;
@@ -157,8 +175,8 @@
         .invoice-ref-box {
             margin-top: 13pt;
             border-radius: 8pt;
-            background: #f1f5f9;
-            border: 1pt solid #e2e8f0;
+            background: #f4f6fb;
+            border: 1pt solid #dbe3f1;
             padding: 8pt 9pt;
         }
 
@@ -167,7 +185,7 @@
             margin-top: 9pt;
             padding: 4pt 8pt;
             border-radius: 999pt;
-            background: #e8eef8;
+            background: #f0f4fb;
             color: #0a1d43;
             font-size: 7pt;
             font-weight: 800;
@@ -185,10 +203,10 @@
         }
 
         .summary-card {
-            border: 1pt solid #e5e7eb;
+            border: 1pt solid #dbe3f1;
             border-radius: 8pt;
             padding: 11pt 12pt;
-            background: #f9fafb;
+            background: #f8fafc;
             vertical-align: top;
         }
 
@@ -202,7 +220,7 @@
 
         .party-card {
             width: 49%;
-            border: 1pt solid #e5e7eb;
+            border: 1pt solid #dbe3f1;
             border-radius: 9pt;
             padding: 13pt;
             vertical-align: top;
@@ -216,7 +234,7 @@
             margin-top: 6pt;
             font-size: 12pt;
             font-weight: 800;
-            color: #111827;
+            color: #0a1d43;
         }
 
         .party-lines {
@@ -226,7 +244,7 @@
         }
 
         .section-title {
-            color: #111827;
+            color: #0a1d43;
             font-size: 9pt;
             font-weight: 800;
             letter-spacing: .4pt;
@@ -236,14 +254,14 @@
 
         .items {
             margin-top: 8pt;
-            border: 1pt solid #e5e7eb;
+            border: 1pt solid #dbe3f1;
             border-radius: 9pt;
             overflow: hidden;
         }
 
         .items th {
-            background: #f3f4f6;
-            color: #374151;
+            background: #f0f4fb;
+            color: #0a1d43;
             font-size: 7pt;
             font-weight: 800;
             letter-spacing: .5pt;
@@ -265,7 +283,7 @@
         .item-name {
             font-size: 9pt;
             font-weight: 800;
-            color: #111827;
+            color: #0a1d43;
         }
 
         .item-desc {
@@ -276,7 +294,7 @@
 
         .item-tax {
             margin-top: 5pt;
-            color: #2563eb;
+            color: #0a1d43;
             font-size: 7pt;
             font-weight: 700;
         }
@@ -297,9 +315,9 @@
         .compliance-card {
             width: 54%;
             vertical-align: top;
-            border: 1pt solid #dbe4f3;
+            border: 1pt solid #dbe3f1;
             border-radius: 9pt;
-            background: #f8fafc;
+            background: #f4f6fb;
             padding: 12pt;
         }
 
@@ -318,7 +336,7 @@
         .qr {
             width: 82pt;
             height: 82pt;
-            border: 1pt solid #dbe4f3;
+            border: 1pt solid #dbe3f1;
             background: #ffffff;
             padding: 5pt;
             margin-right: 10pt;
@@ -366,7 +384,7 @@
         .notes {
             margin-top: 18pt;
             border-left: 3pt solid #0a1d43;
-            background: #f9fafb;
+            background: #f4f6fb;
             padding: 11pt 12pt;
             color: #4b5563;
             font-size: 8pt;
@@ -379,7 +397,7 @@
             bottom: 14pt;
             color: #9ca3af;
             font-size: 7pt;
-            border-top: 1pt solid #e5e7eb;
+            border-top: 1pt solid #dbe3f1;
             padding-top: 7pt;
         }
     </style>
@@ -411,18 +429,27 @@
                 <table>
                     <tr>
                         <td style="width: 44pt; vertical-align: top;">
-                            <div class="brand-mark">V</div>
+                            <div class="brand-mark">
+                                <svg width="24" height="24" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                    <path d="M3 5.5L13 2L23 5.5V13C23 18.5 18.5 22.5 13 24C7.5 22.5 3 18.5 3 13V5.5Z" stroke="#0a1d43" stroke-width="1.6" stroke-linejoin="round"/>
+                                    <path d="M8 12.5L11.5 16L18 9.5" stroke="#0a1d43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+                                </svg>
+                            </div>
                         </td>
                         <td style="vertical-align: top;">
-                            <h1 class="brand-name">{{ $invoice->organization->name }}</h1>
-                            <div class="brand-meta">
-                                TIN: {{ $invoice->organization->tin ?? 'N/A' }}<br>
-                                {{ $invoice->organization->street_name ?? '' }}{{ $invoice->organization->city_name ? ', '.$invoice->organization->city_name : '' }}<br>
-                                {{ $invoice->organization->email ?? '' }}{{ $invoice->organization->telephone ? ' | '.$invoice->organization->telephone : '' }}
-                            </div>
+                            <h1 class="brand-name">Veridex<span class="brand-trademark">™</span></h1>
+                            <div class="brand-meta">Trusted e-invoicing infrastructure</div>
                         </td>
                     </tr>
                 </table>
+                <div class="supplier-card">
+                    <div class="supplier-name">{{ $invoice->organization->name }}</div>
+                    <div class="brand-meta">
+                        TIN: {{ $invoice->organization->tin ?? 'N/A' }}<br>
+                        {{ $invoice->organization->street_name ?? '' }}{{ $invoice->organization->city_name ? ', '.$invoice->organization->city_name : '' }}<br>
+                        {{ $invoice->organization->email ?? '' }}{{ $invoice->organization->telephone ? ' | '.$invoice->organization->telephone : '' }}
+                    </div>
+                </div>
                 <div class="brand-strip">Veridex e-invoicing compliance document</div>
             </td>
             <td class="invoice-panel" style="width: 38%;">
