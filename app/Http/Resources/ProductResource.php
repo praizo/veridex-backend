@@ -17,6 +17,7 @@ class ProductResource extends JsonResource
             'unit' => $this->unit_code,
             'hsn_code' => $this->hs_code,
             'product_category' => $this->tax_category,
+            'tax_rate' => $this->tax_rate,
             'created_at' => $this->created_at,
         ];
     }

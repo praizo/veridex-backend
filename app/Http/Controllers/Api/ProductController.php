@@ -24,6 +24,7 @@ class ProductController extends Controller
             'unit_code' => $validated['unit'],
             'hs_code' => $validated['hsn_code'],
             'tax_category' => $validated['product_category'],
+            'tax_rate' => $validated['tax_rate'] ?? 7.5,
         ];
     }
 
@@ -46,6 +47,7 @@ class ProductController extends Controller
             'unit' => ['required', 'string', 'max:50'],
             'hsn_code' => ['required', 'string'],
             'product_category' => ['required', 'string'],
+            'tax_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $product = $this->productService->create(
@@ -78,6 +80,7 @@ class ProductController extends Controller
             'unit' => ['required', 'string', 'max:50'],
             'hsn_code' => ['required', 'string'],
             'product_category' => ['required', 'string'],
+            'tax_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
 
         $this->productService->update($product, $this->mapProductPayload($validated));

@@ -33,7 +33,15 @@ class InvoicePdfService
             $qrCodeSrc = 'data:image/svg+xml;base64,'.base64_encode($qrCodeImage);
         }
 
-        $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'qrCodeSrc'));
+        $logoSvg = <<<'SVG'
+<svg width="26" height="26" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M3 5.5L13 2L23 5.5V13C23 18.5 18.5 22.5 13 24C7.5 22.5 3 18.5 3 13V5.5Z" stroke="#0a1d43" stroke-width="1.6" stroke-linejoin="round"/>
+    <path d="M8 12.5L11.5 16L18 9.5" stroke="#0a1d43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
+SVG;
+        $logoSrc = 'data:image/svg+xml;base64,'.base64_encode($logoSvg);
+
+        $pdf = Pdf::loadView('invoices.pdf', compact('invoice', 'qrCodeSrc', 'logoSrc'));
 
         // Output as A4
         $pdf->setPaper('a4', 'portrait');

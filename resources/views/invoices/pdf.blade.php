@@ -116,6 +116,12 @@
             padding: 5pt;
         }
 
+        .brand-logo {
+            width: 24pt;
+            height: 24pt;
+            display: block;
+        }
+
         .brand-name {
             font-size: 15pt;
             font-weight: 800;
@@ -430,14 +436,11 @@
                     <tr>
                         <td style="width: 44pt; vertical-align: top;">
                             <div class="brand-mark">
-                                <svg width="24" height="24" viewBox="0 0 26 26" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                    <path d="M3 5.5L13 2L23 5.5V13C23 18.5 18.5 22.5 13 24C7.5 22.5 3 18.5 3 13V5.5Z" stroke="#0a1d43" stroke-width="1.6" stroke-linejoin="round"/>
-                                    <path d="M8 12.5L11.5 16L18 9.5" stroke="#0a1d43" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
-                                </svg>
+                                <img src="{{ $logoSrc }}" alt="Veridex" class="brand-logo">
                             </div>
                         </td>
                         <td style="vertical-align: top;">
-                            <h1 class="brand-name">Veridex<span class="brand-trademark">™</span></h1>
+                            <h1 class="brand-name">Veridex<span class="brand-trademark">&trade;</span></h1>
                             <div class="brand-meta">Trusted e-invoicing infrastructure</div>
                         </td>
                     </tr>

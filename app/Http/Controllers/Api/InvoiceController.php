@@ -100,6 +100,22 @@ class InvoiceController extends Controller
     }
 
     /**
+     * Update an editable draft invoice.
+     */
+    public function update(StoreInvoiceRequest $request, Invoice $invoice): JsonResponse
+    {
+        $this->checkInvoiceTenancy($invoice);
+
+        $dto = CreateInvoiceDTO::fromRequest($request);
+        $invoice = $this->invoiceService->updateDraftInvoice($invoice, $dto);
+
+        return response()->json([
+            'message' => 'Draft invoice updated successfully.',
+            'data' => (new InvoiceResource($invoice))->resolve($request),
+        ]);
+    }
+
+    /**
      * Step 1: Validate on NRS.
      */
     public function validateOnNrs(Invoice $invoice): InvoiceResource

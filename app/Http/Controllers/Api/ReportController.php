@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Invoice;
+use BackedEnum;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -11,33 +12,92 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportController extends Controller
 {
     /**
-     * Get summary statistics for B2C invoices.
+     * Get filtered invoice analytics for the active organization.
      */
-    public function b2cSummary(Request $request): JsonResponse
+    public function invoiceSummary(Request $request): JsonResponse
     {
         $orgId = $request->user()->current_organization_id;
+        $filters = $request->validate([
+            'customer_type' => ['nullable', 'string', 'in:all,business,individual,government'],
+            'status' => ['nullable', 'string'],
+            'payment_status' => ['nullable', 'string'],
+            'tax_category_id' => ['nullable', 'string'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
 
-        $summary = Invoice::where('organization_id', $orgId)
-            ->whereHas('customer', function ($query) {
-                $query->where('type', 'individual');
-            })
+        $baseQuery = $this->filteredInvoiceQuery($orgId, $filters);
+
+        $statusSummary = (clone $baseQuery)
             ->selectRaw('
                 COUNT(*) as total_count,
                 SUM(payable_amount) as total_amount,
                 SUM(tax_inclusive_amount - tax_exclusive_amount) as total_vat,
-                status
+                invoices.status as status
             ')
-            ->groupBy('status')
+            ->groupBy('invoices.status')
             ->get();
 
+        $paymentSummary = (clone $baseQuery)
+            ->selectRaw('
+                COUNT(*) as total_count,
+                SUM(payable_amount) as total_amount,
+                invoices.payment_status as payment_status
+            ')
+            ->groupBy('invoices.payment_status')
+            ->get();
+
+        $topCustomers = (clone $baseQuery)
+            ->join('customers', 'customers.id', '=', 'invoices.customer_id')
+            ->selectRaw('
+                customers.name as customer_name,
+                customers.type as customer_type,
+                COUNT(*) as total_count,
+                SUM(invoices.payable_amount) as total_amount
+            ')
+            ->groupBy('customers.id', 'customers.name', 'customers.type')
+            ->orderByDesc('total_amount')
+            ->limit(8)
+            ->get();
+
+        $monthlyTrend = (clone $baseQuery)
+            ->select(['issue_date', 'payable_amount', 'tax_inclusive_amount', 'tax_exclusive_amount'])
+            ->get()
+            ->groupBy(fn ($invoice) => optional($invoice->issue_date)->format('Y-m') ?? 'Unknown')
+            ->map(fn ($invoices, $period) => [
+                'period' => $period,
+                'total_count' => $invoices->count(),
+                'total_amount' => $invoices->sum('payable_amount'),
+                'total_vat' => $invoices->sum(fn ($invoice) => $invoice->tax_inclusive_amount - $invoice->tax_exclusive_amount),
+            ])
+            ->sortKeys()
+            ->values();
+
         return response()->json([
-            'data' => $summary,
+            'data' => $statusSummary,
+            'status_summary' => $statusSummary,
+            'payment_summary' => $paymentSummary,
+            'top_customers' => $topCustomers,
+            'monthly_trend' => $monthlyTrend,
             'summary' => [
-                'count' => $summary->sum('total_count'),
-                'amount' => $summary->sum('total_amount'),
-                'vat' => $summary->sum('total_vat'),
+                'count' => $statusSummary->sum('total_count'),
+                'amount' => $statusSummary->sum('total_amount'),
+                'vat' => $statusSummary->sum('total_vat'),
+                'average_invoice_value' => $statusSummary->sum('total_count') > 0
+                    ? round($statusSummary->sum('total_amount') / $statusSummary->sum('total_count'), 2)
+                    : 0,
             ],
         ]);
+    }
+
+    /**
+     * Backward-compatible B2C summary endpoint.
+     */
+    public function b2cSummary(Request $request): JsonResponse
+    {
+        $request->merge(['customer_type' => 'individual']);
+
+        return $this->invoiceSummary($request);
     }
 
     /**
@@ -47,7 +107,16 @@ class ReportController extends Controller
     {
         $orgId = $request->user()->current_organization_id;
 
-        $response = new StreamedResponse(function () use ($orgId) {
+        $filters = $request->validate([
+            'customer_type' => ['nullable', 'string', 'in:all,business,individual,government'],
+            'status' => ['nullable', 'string'],
+            'payment_status' => ['nullable', 'string'],
+            'tax_category_id' => ['nullable', 'string'],
+            'date_from' => ['nullable', 'date'],
+            'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
+        ]);
+
+        $response = new StreamedResponse(function () use ($orgId, $filters) {
             $handle = fopen('php://output', 'w');
 
             // Write CSV headers
@@ -67,15 +136,9 @@ class ReportController extends Controller
             ]);
 
             // Stream invoices in chunks to prevent memory exhaustion
-            $query = Invoice::where('organization_id', $orgId)
+            $query = $this->filteredInvoiceQuery($orgId, $filters)
                 ->with('customer')
-                ->latest();
-
-            if ($request->has('customer_type')) {
-                $query->whereHas('customer', function ($q) use ($request) {
-                    $q->where('type', $request->customer_type);
-                });
-            }
+                ->latest('invoices.created_at');
 
             $query->chunk(100, function ($invoices) use ($handle) {
                 foreach ($invoices as $invoice) {
@@ -83,8 +146,8 @@ class ReportController extends Controller
 
                     fputcsv($handle, [
                         $invoice->invoice_number,
-                        $invoice->status,
-                        $invoice->payment_status,
+                        $this->enumValue($invoice->status),
+                        $this->enumValue($invoice->payment_status),
                         $invoice->irn ?? 'N/A',
                         $invoice->issue_date->format('Y-m-d'),
                         $invoice->due_date ? $invoice->due_date->format('Y-m-d') : 'N/A',
@@ -107,5 +170,73 @@ class ReportController extends Controller
         $response->headers->set('Content-Disposition', 'attachment; filename="invoices_export_'.$date.'.csv"');
 
         return $response;
+    }
+
+    private function filteredInvoiceQuery(int $orgId, array $filters)
+    {
+        $query = Invoice::where('invoices.organization_id', $orgId);
+
+        if (! empty($filters['customer_type']) && $filters['customer_type'] !== 'all') {
+            $query->whereHas('customer', function ($q) use ($filters) {
+                $q->where('type', $filters['customer_type']);
+            });
+        }
+
+        if (! empty($filters['status'])) {
+            $query->whereIn('invoices.status', $this->statusFilterValues($filters['status']));
+        }
+
+        if (! empty($filters['payment_status'])) {
+            $query->where('invoices.payment_status', $filters['payment_status']);
+        }
+
+        if (! empty($filters['tax_category_id'])) {
+            $query->whereHas('taxTotals', function ($q) use ($filters) {
+                $q->where('tax_category_id', $filters['tax_category_id']);
+            });
+        }
+
+        if (! empty($filters['date_from'])) {
+            $query->whereDate('invoices.issue_date', '>=', $filters['date_from']);
+        }
+
+        if (! empty($filters['date_to'])) {
+            $query->whereDate('invoices.issue_date', '<=', $filters['date_to']);
+        }
+
+        return $query;
+    }
+
+    private function statusFilterValues(string $status): array
+    {
+        return match ($status) {
+            'validated' => [
+                'validated',
+                'pending_signing',
+                'sign_failed',
+                'signed',
+                'pending_transmit',
+                'transmit_failed',
+                'transmitted',
+                'confirmed',
+            ],
+            'signed' => [
+                'signed',
+                'pending_transmit',
+                'transmit_failed',
+                'transmitted',
+                'confirmed',
+            ],
+            'transmitted' => [
+                'transmitted',
+                'confirmed',
+            ],
+            default => [$status],
+        };
+    }
+
+    private function enumValue(mixed $value): mixed
+    {
+        return $value instanceof BackedEnum ? $value->value : $value;
     }
 }

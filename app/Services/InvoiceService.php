@@ -89,6 +89,63 @@ class InvoiceService
     }
 
     /**
+     * Update an editable draft invoice and recalculate all monetary amounts.
+     */
+    public function updateDraftInvoice(Invoice $invoice, CreateInvoiceDTO $dto): Invoice
+    {
+        $status = $invoice->status?->value ?? $invoice->status;
+        if (! in_array($status, ['draft', 'validation_failed'], true)) {
+            throw new InvoiceStateException('Only draft invoices can be edited.');
+        }
+
+        $this->validateTaxCompliance($dto);
+
+        return DB::transaction(function () use ($invoice, $dto) {
+            $calculated = $this->calculateAuthoritativeAmounts($dto);
+            $invoiceData = array_merge($dto->toInvoiceArray(), $calculated['totals']);
+
+            unset($invoiceData['organization_id'], $invoiceData['created_by'], $invoiceData['invoice_number']);
+            $invoiceData['status'] = InvoiceStatus::DRAFT;
+
+            $invoice->update($invoiceData);
+            $invoice->lines()->delete();
+            $invoice->taxTotals()->delete();
+            $invoice->paymentMeans()->delete();
+            $invoice->allowanceCharges()->delete();
+            $invoice->docReferences()->delete();
+
+            foreach ($calculated['lines'] as $line) {
+                $invoice->lines()->create($line);
+            }
+
+            foreach ($calculated['tax_totals'] as $taxTotal) {
+                $invoice->taxTotals()->create($taxTotal);
+            }
+
+            foreach ($dto->payment_means as $payDto) {
+                $invoice->paymentMeans()->create($payDto->toArray());
+            }
+
+            foreach ($dto->allowance_charges as $allowDto) {
+                $invoice->allowanceCharges()->create($allowDto->toArray());
+            }
+
+            foreach ($dto->doc_references as $docDto) {
+                $invoice->docReferences()->create($docDto->toArray());
+            }
+
+            $this->activityLog->log(
+                auth()->user(),
+                ActivityAction::UPDATED->value,
+                $invoice,
+                "Draft invoice #{$invoice->invoice_number} updated."
+            );
+
+            return $invoice->fresh(['customer', 'lines', 'organization', 'taxTotals', 'paymentMeans', 'stateTransitions']);
+        });
+    }
+
+    /**
      * Ensure that the invoice data matches the official FIRS resource data.
      */
     protected function validateTaxCompliance(CreateInvoiceDTO $dto): void

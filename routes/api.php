@@ -58,6 +58,7 @@ Route::prefix('v1')->group(function () {
             // Governance & Reports
             Route::get('/activity-logs', [ActivityLogController::class, 'index']);
             Route::get('/reports/invoices/csv', [ReportController::class, 'exportCsv']);
+            Route::get('/reports/invoices/summary', [ReportController::class, 'invoiceSummary']);
             Route::get('/reports/b2c/summary', [ReportController::class, 'b2cSummary']);
 
             // Organizations & Team
@@ -105,7 +106,7 @@ Route::prefix('v1')->group(function () {
             Route::apiResource('customers', CustomerController::class);
 
             // Products
-            Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show']);
+            Route::apiResource('products', ProductController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
         });
     });
 });
