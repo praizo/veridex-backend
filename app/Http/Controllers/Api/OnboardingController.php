@@ -91,24 +91,9 @@ class OnboardingController extends Controller
 
         $tin = $request->tin;
 
-        // FIRS Sandbox Data Mock (since public lookup often isn't in the collection)
-        $simulatedData = [
-            '20484017-0001' => ['name' => 'GMRiteMate Global', 'status' => 'ACTIVE', 'category' => 'MEDIUM'],
-            '18609323-0001' => ['name' => 'Sandbox Trading Ltd', 'status' => 'ACTIVE', 'category' => 'SMALL'],
-            '99999999-0001' => ['name' => 'Veridex Dummy Taxpayer Ltd', 'status' => 'ACTIVE', 'category' => 'MEDIUM'],
-        ];
-
         try {
             // Attempt a real check if your FIRS collection had a verify endpoint (placeholder)
             // $response = $this->nrsClient->get("api/v1/taxpayer/verify?tin={$tin}");
-
-            if (isset($simulatedData[$tin])) {
-                return response()->json([
-                    'success' => true,
-                    'is_valid' => true,
-                    'data' => $simulatedData[$tin],
-                ]);
-            }
 
             // Basic Structural Validation for Nigerian TIN (usually 12 digits or 8 digits)
             $isFormatValid = preg_match('/^\d{8}-\d{4}$/', $tin);
