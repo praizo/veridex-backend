@@ -98,7 +98,7 @@ class InvoiceResource extends JsonResource
             'payment_means' => $this->whenLoaded('paymentMeans'),
             'nrs_submissions' => $this->whenLoaded('nrsSubmissions'),
             'state_transitions' => $this->whenLoaded('stateTransitions', function () {
-                return $this->stateTransitions->sortByDesc('created_at');
+                return $this->stateTransitions->sortByDesc('id')->values();
             }),
 
             'qr_code_url' => $this->irn && in_array($status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'], true)
