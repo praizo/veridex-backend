@@ -2,11 +2,11 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\TeamMemberAdded;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\AddMemberRequest;
 use App\Models\Organization;
 use App\Models\User;
-use App\Notifications\TeamInvitationNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -118,13 +118,14 @@ class TeamController extends Controller
             ? $this->frontendUrl('/reset-password?token='.Password::broker()->createToken($newUser).'&email='.urlencode($newUser->email))
             : $this->frontendUrl('/login');
 
-        $newUser->notify(new TeamInvitationNotification(
+        TeamMemberAdded::dispatch(
+            user: $newUser,
             organizationName: $org->name,
             inviterName: $request->user()->name,
             role: $request->role,
             actionUrl: $actionUrl,
             requiresPasswordSetup: $requiresPasswordSetup,
-        ));
+        );
 
         return response()->json([
             'message' => $wasCreated

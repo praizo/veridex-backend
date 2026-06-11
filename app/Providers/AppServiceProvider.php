@@ -3,7 +3,9 @@
 namespace App\Providers;
 
 use App\Events\OtpRequested;
+use App\Events\TeamMemberAdded;
 use App\Listeners\SendOtpEmail;
+use App\Listeners\SendTeamInvitationEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -31,5 +33,8 @@ class AppServiceProvider extends ServiceProvider
 
         // OTP email dispatch (async via queued listener)
         Event::listen(OtpRequested::class, SendOtpEmail::class);
+
+        // Team invitation email dispatch (async via queued listener)
+        Event::listen(TeamMemberAdded::class, SendTeamInvitationEmail::class);
     }
 }
