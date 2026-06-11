@@ -41,15 +41,15 @@ class InvoiceResource extends JsonResource
 
     private function lifecycle(string $status): array
     {
-        $validatedStatuses = ['validated', 'pending_signing', 'sign_failed', 'signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'];
-        $signedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'];
-        $transmittedStatuses = ['transmitted', 'confirmed'];
+        $validatedStatuses = ['validated', 'pending_signing', 'sign_failed', 'signed', 'pending_transmit', 'transmit_failed', 'transmitted'];
+        $signedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted'];
+        $transmittedStatuses = ['transmitted'];
 
         return [
             'validated' => in_array($status, $validatedStatuses, true),
             'signed' => in_array($status, $signedStatuses, true),
             'transmitted' => in_array($status, $transmittedStatuses, true),
-            'confirmed' => $status === 'confirmed',
+            'confirmed' => false,
             'current_blocker' => in_array($status, ['validation_failed', 'sign_failed', 'transmit_failed'], true)
                 ? $status
                 : null,

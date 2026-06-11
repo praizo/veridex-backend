@@ -4,12 +4,10 @@ namespace App\Services;
 
 use App\Enums\InvoiceStatus;
 use App\Exceptions\InvoiceStateException;
-use App\Mail\InvoiceConfirmedMail;
 use App\Models\Invoice;
 use App\Models\InvoiceStateTransition;
 use App\Models\User;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 
 class InvoiceStateService
 {
@@ -53,16 +51,6 @@ class InvoiceStateService
         $newStatus = $toStatus->value;
         Log::info("Invoice state transition: [{$invoice->irn}] moved to [{$newStatus}] by [{$trigger}]");
 
-        // Trigger notifications if confirmed
-        if ($newStatus === 'confirmed' && $invoice->customer?->email) {
-            try {
-                Mail::to($invoice->customer->email)->send(new InvoiceConfirmedMail($invoice));
-                Log::info("Invoice confirmation email dispatched to: {$invoice->customer->email}");
-            } catch (\Exception $e) {
-                Log::error('Failed to send invoice confirmation email: '.$e->getMessage());
-            }
-        }
-
         return $transition;
     }
 
@@ -80,10 +68,9 @@ class InvoiceStateService
             InvoiceStatus::VALIDATION_FAILED->value => [InvoiceStatus::DRAFT, InvoiceStatus::PENDING_VALIDATION],
             InvoiceStatus::PENDING_SIGNING->value => [InvoiceStatus::SIGNED, InvoiceStatus::SIGN_FAILED],
             InvoiceStatus::SIGNED->value => [InvoiceStatus::PENDING_TRANSMIT],
-            InvoiceStatus::SIGN_FAILED->value => [InvoiceStatus::VALIDATED, InvoiceStatus::PENDING_SIGNING, InvoiceStatus::PENDING_VALIDATION],
+            InvoiceStatus::SIGN_FAILED->value => [InvoiceStatus::PENDING_SIGNING],
             InvoiceStatus::PENDING_TRANSMIT->value => [InvoiceStatus::TRANSMITTED, InvoiceStatus::TRANSMIT_FAILED],
-            InvoiceStatus::TRANSMITTED->value => [InvoiceStatus::CONFIRMED],
-            InvoiceStatus::TRANSMIT_FAILED->value => [InvoiceStatus::SIGNED, InvoiceStatus::PENDING_TRANSMIT, InvoiceStatus::PENDING_SIGNING, InvoiceStatus::PENDING_VALIDATION],
+            InvoiceStatus::TRANSMIT_FAILED->value => [InvoiceStatus::PENDING_TRANSMIT],
         ];
 
         $allowedTo = $allowed[$from->value] ?? [];

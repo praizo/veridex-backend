@@ -4,8 +4,10 @@ namespace App\Services;
 
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Response;
 use SimpleSoftwareIO\QrCode\Facades\QrCode;
+use stdClass;
 
 class InvoicePdfService
 {
@@ -22,6 +24,8 @@ class InvoicePdfService
             'taxTotals',
             'paymentMeans',
         ]);
+
+        $invoice = $this->applyImmutableSnapshots($invoice);
 
         $qrCodeSrc = null;
         if ($invoice->irn) {
@@ -57,5 +61,78 @@ SVG;
             'Content-Type' => 'application/pdf',
             'Content-Disposition' => 'inline; filename="invoice_'.$invoice->invoice_number.'.pdf"',
         ]);
+    }
+
+    public function applyImmutableSnapshots(Invoice $invoice): Invoice
+    {
+        $status = $invoice->status?->value ?? $invoice->status;
+        $fiscalizedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted'];
+
+        if (! in_array($status, $fiscalizedStatuses, true)) {
+            return $invoice;
+        }
+
+        if ($invoice->seller_snapshot) {
+            $invoice->setRelation('organization', $this->objectWithDefaults($invoice->seller_snapshot, [
+                'name' => null,
+                'tin' => null,
+                'email' => null,
+                'telephone' => null,
+                'street_name' => null,
+                'city_name' => null,
+                'country_subentity' => null,
+                'country_code' => null,
+            ]));
+        }
+
+        if ($invoice->buyer_snapshot) {
+            $invoice->setRelation('customer', $this->objectWithDefaults($invoice->buyer_snapshot, [
+                'name' => null,
+                'tin' => null,
+                'email' => null,
+                'telephone' => null,
+                'street_name' => null,
+                'building_number' => null,
+                'city_name' => null,
+                'country_subentity' => null,
+                'postal_zone' => null,
+                'country_code' => null,
+            ]));
+        }
+
+        if ($invoice->line_snapshot) {
+            $invoice->setRelation('lines', $this->snapshotCollection($invoice->line_snapshot, [
+                'item_name' => null,
+                'item_description' => null,
+                'hsn_code' => null,
+                'hscode' => null,
+                'invoiced_quantity' => 0,
+                'price_amount' => 0,
+                'line_extension_amount' => 0,
+                'tax_category_id' => null,
+                'tax_percent' => 0,
+            ]));
+        }
+
+        if ($invoice->tax_snapshot) {
+            $invoice->setRelation('taxTotals', $this->snapshotCollection($invoice->tax_snapshot, [
+                'tax_amount' => 0,
+                'taxable_amount' => 0,
+                'tax_category_id' => null,
+                'tax_percent' => 0,
+            ]));
+        }
+
+        return $invoice;
+    }
+
+    private function snapshotCollection(array $items, array $defaults): Collection
+    {
+        return collect($items)->map(fn (array $item) => $this->objectWithDefaults($item, $defaults));
+    }
+
+    private function objectWithDefaults(array $values, array $defaults): stdClass
+    {
+        return (object) array_merge($defaults, $values);
     }
 }

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\DTOs\Invoice\CreateInvoiceDTO;
 use App\Enums\ActivityAction;
 use App\Enums\InvoiceStatus;
+use App\Exceptions\InvoiceStateException;
 use App\Exceptions\NrsApiException;
 use App\Models\Customer;
 use App\Models\Invoice;
@@ -94,8 +95,16 @@ class InvoiceService
     public function updateDraftInvoice(Invoice $invoice, CreateInvoiceDTO $dto): Invoice
     {
         $status = $invoice->status?->value ?? $invoice->status;
-        if (! in_array($status, ['draft', 'validation_failed'], true)) {
-            throw new InvoiceStateException('Only draft invoices can be edited.');
+        $wasSigned = $invoice->seller_snapshot
+            || $invoice->buyer_snapshot
+            || $invoice->stateTransitions()->where('to_status', InvoiceStatus::SIGNED->value)->exists();
+
+        if ($status === 'draft') {
+            // Drafts have no compliance effect yet and can still be edited.
+        } elseif ($status === 'validation_failed' && ! $wasSigned) {
+            // Validation failures before signing can be corrected and retried.
+        } else {
+            throw new InvoiceStateException('Only draft or pre-sign validation-failed invoices can be edited.');
         }
 
         $this->validateTaxCompliance($dto);

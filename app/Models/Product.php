@@ -25,7 +25,9 @@ class Product extends Model
         'organization_id',
         'name',
         'hs_code',
+        'item_category',
         'description',
+        'quantity',
         'unit_price',
         'unit_code',
         'tax_category',
@@ -33,6 +35,7 @@ class Product extends Model
     ];
 
     protected $casts = [
+        'quantity' => 'decimal:2',
         'unit_price' => 'decimal:2',
         'tax_rate' => 'decimal:2',
     ];

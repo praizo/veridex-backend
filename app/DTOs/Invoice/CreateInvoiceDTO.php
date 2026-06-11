@@ -66,7 +66,7 @@ final readonly class CreateInvoiceDTO
             price_amount: (float) ($line['price_amount'] ?? 0),
             tax_category_id: (string) ($line['tax_category_id'] ?? 'STANDARD_VAT'),
             tax_percent: (float) ($line['tax_percent'] ?? 7.5),
-            unit_code: (string) ($line['price_unit'] ?? 'EA'),
+            unit_code: (string) ($line['unit_code'] ?? $line['price_unit'] ?? 'EA'),
             item_description: (string) ($line['item_description'] ?? null),
             hs_code: (string) ($line['hsn_code'] ?? null),
             item_category: (string) ($line['product_category'] ?? null),

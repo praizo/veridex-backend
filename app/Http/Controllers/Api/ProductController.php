@@ -20,12 +20,21 @@ class ProductController extends Controller
         return [
             'name' => $validated['name'],
             'description' => $validated['description'] ?? null,
+            'quantity' => $validated['quantity'] ?? 1,
             'unit_price' => $validated['price'],
-            'unit_code' => $validated['unit'],
+            'unit_code' => $validated['unit'] ?? 'EA',
             'hs_code' => $validated['hsn_code'],
+            'item_category' => $validated['item_category'] ?? null,
             'tax_category' => $validated['product_category'],
             'tax_rate' => $validated['tax_rate'] ?? 7.5,
         ];
+    }
+
+    private function checkProductTenancy(Product $product): void
+    {
+        if ($product->organization_id !== request()->user()->current_organization_id) {
+            abort(403, 'Unauthorized access to product');
+        }
     }
 
     public function index(Request $request): JsonResponse
@@ -43,9 +52,11 @@ class ProductController extends Controller
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'sku' => ['nullable', 'string', 'max:50'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0'],
-            'unit' => ['required', 'string', 'max:50'],
+            'unit' => ['nullable', 'string', 'max:50'],
             'hsn_code' => ['required', 'string'],
+            'item_category' => ['nullable', 'string', 'max:1000'],
             'product_category' => ['required', 'string'],
             'tax_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -63,22 +74,24 @@ class ProductController extends Controller
 
     public function show(Product $product): ProductResource
     {
-        if ($product->organization_id !== request()->user()->current_organization_id) {
-            abort(403, 'Unauthorized access to product');
-        }
+        $this->checkProductTenancy($product);
 
         return new ProductResource($product);
     }
 
     public function update(Request $request, Product $product): JsonResponse
     {
+        $this->checkProductTenancy($product);
+
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
             'description' => ['nullable', 'string', 'max:1000'],
             'sku' => ['nullable', 'string', 'max:50'],
+            'quantity' => ['nullable', 'integer', 'min:1'],
             'price' => ['required', 'numeric', 'min:0'],
-            'unit' => ['required', 'string', 'max:50'],
+            'unit' => ['nullable', 'string', 'max:50'],
             'hsn_code' => ['required', 'string'],
+            'item_category' => ['nullable', 'string', 'max:1000'],
             'product_category' => ['required', 'string'],
             'tax_rate' => ['nullable', 'numeric', 'min:0'],
         ]);
@@ -93,6 +106,8 @@ class ProductController extends Controller
 
     public function destroy(Product $product): JsonResponse
     {
+        $this->checkProductTenancy($product);
+
         $product->delete();
 
         return response()->json([

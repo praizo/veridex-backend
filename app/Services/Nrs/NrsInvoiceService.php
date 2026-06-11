@@ -5,6 +5,7 @@ namespace App\Services\Nrs;
 use App\Enums\InvoiceStatus;
 use App\Enums\NrsAction;
 use App\Enums\NrsSubmissionStatus;
+use App\Exceptions\InvoiceStateException;
 use App\Exceptions\NrsApiException;
 use App\Models\Invoice;
 use App\Models\NrsSubmission;
@@ -94,16 +95,6 @@ class NrsInvoiceService
             $this->stateService->transition($invoice, InvoiceStatus::SIGN_FAILED, request()->user(), 'NRS Signing Failed', null, ['error' => $e->getMessage()]);
             $this->activityLog->log(request()->user(), 'NRS_SIGN_FAIL', $invoice, 'Failed to sign invoice on NRS.', ['raw_error' => $e->getMessage()]);
             throw $e;
-        }
-
-        // Auto-transmit after successful signing
-        try {
-            $this->transmit($invoice);
-        } catch (\Throwable $e) {
-            // We just swallow/log the exception here because the sign action itself was successful.
-            // The transmit() method already transitions the state to transmit_failed and logs it.
-            // We don't want to fail the whole sign request just because auto-transmit failed.
-            Log::error('Auto-transmit failed during sign: '.$e->getMessage());
         }
 
         return $result;
@@ -198,20 +189,7 @@ class NrsInvoiceService
      */
     public function confirm(Invoice $invoice): array
     {
-        if (! $invoice->irn) {
-            throw new NrsApiException('Cannot confirm an invoice without an IRN.');
-        }
-
-        try {
-            $result = $this->performAction($invoice, NrsAction::CONFIRM, "api/v1/invoice/transmit/{$invoice->irn}");
-            $this->stateService->transition($invoice, InvoiceStatus::CONFIRMED, request()->user(), 'NRS Confirm Succeeded');
-            $this->activityLog->log(request()->user(), 'NRS_CONFIRM', $invoice, 'Successfully confirmed invoice on NRS.');
-
-            return $result;
-        } catch (\Exception $e) {
-            $this->activityLog->log(request()->user(), 'NRS_CONFIRM_FAIL', $invoice, 'Failed to confirm invoice on NRS.', ['raw_error' => $e->getMessage()]);
-            throw $e;
-        }
+        throw new InvoiceStateException('Confirmation is deferred for this lifecycle. A transmitted invoice is terminal.');
     }
 
     /**

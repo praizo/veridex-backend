@@ -25,6 +25,7 @@ class ReportController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
+        $filters['customer_type'] ??= 'business';
 
         $baseQuery = $this->filteredInvoiceQuery($orgId, $filters);
 
@@ -115,6 +116,7 @@ class ReportController extends Controller
             'date_from' => ['nullable', 'date'],
             'date_to' => ['nullable', 'date', 'after_or_equal:date_from'],
         ]);
+        $filters['customer_type'] ??= 'business';
 
         $response = new StreamedResponse(function () use ($orgId, $filters) {
             $handle = fopen('php://output', 'w');
@@ -218,19 +220,14 @@ class ReportController extends Controller
                 'pending_transmit',
                 'transmit_failed',
                 'transmitted',
-                'confirmed',
             ],
             'signed' => [
                 'signed',
                 'pending_transmit',
                 'transmit_failed',
                 'transmitted',
-                'confirmed',
             ],
-            'transmitted' => [
-                'transmitted',
-                'confirmed',
-            ],
+            'transmitted' => ['transmitted'],
             default => [$status],
         };
     }

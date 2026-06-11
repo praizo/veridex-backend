@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Enums\InvoiceStatus;
+use App\Exceptions\InvoiceStateException;
 use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Organization;
@@ -424,6 +425,230 @@ class InvoiceTest extends TestCase
         $this->assertDatabaseHas('activity_logs', [
             'subject_id' => $invoice->id,
             'action' => 'NRS_PAYMENT_UPDATE_SKIP',
+        ]);
+    }
+
+    public function test_draft_and_pre_sign_validation_failed_invoices_are_editable(): void
+    {
+        $createResponse = $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload());
+
+        $createResponse->assertStatus(201);
+        $invoice = Invoice::firstOrFail();
+
+        $this->actingAs($this->user)
+            ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload([
+                'lines' => [[
+                    'line_id' => '1',
+                    'invoiced_quantity' => 1,
+                    'line_extension_amount' => 1500,
+                    'item_name' => 'Edited Draft Product',
+                    'price_amount' => 1500,
+                    'hsn_code' => '123456',
+                    'product_category' => 'Test Category',
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ]],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'draft');
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::VALIDATION_FAILED]);
+
+        $this->actingAs($this->user)
+            ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload([
+                'lines' => [[
+                    'line_id' => '1',
+                    'invoiced_quantity' => 1,
+                    'line_extension_amount' => 2000,
+                    'item_name' => 'Corrected Validation Failure',
+                    'price_amount' => 2000,
+                    'hsn_code' => '123456',
+                    'product_category' => 'Test Category',
+                    'tax_category_id' => 'STANDARD_VAT',
+                    'tax_percent' => 7.5,
+                ]],
+            ]))
+            ->assertOk()
+            ->assertJsonPath('data.status', 'draft');
+    }
+
+    public function test_signed_and_transmitted_invoices_are_immutable_documents(): void
+    {
+        $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload())
+            ->assertStatus(201);
+
+        $invoice = Invoice::with(['customer', 'lines', 'taxTotals', 'organization'])->firstOrFail();
+        $stateService = app(InvoiceStateService::class);
+        $stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATED, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::SIGNED, $this->user, 'test');
+
+        $this->actingAs($this->user)
+            ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
+            ->assertStatus(409);
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMITTED]);
+
+        $this->actingAs($this->user)
+            ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
+            ->assertStatus(409);
+    }
+
+    public function test_validation_failed_after_signing_is_not_editable(): void
+    {
+        $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload())
+            ->assertStatus(201);
+
+        $invoice = Invoice::with(['customer', 'lines', 'taxTotals', 'organization'])->firstOrFail();
+        $stateService = app(InvoiceStateService::class);
+        $stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATED, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::SIGNED, $this->user, 'test');
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::VALIDATION_FAILED]);
+
+        $this->actingAs($this->user)
+            ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
+            ->assertStatus(409);
+    }
+
+    public function test_transmitted_is_terminal_and_failed_states_retry_forward_only(): void
+    {
+        $invoice = Invoice::create([
+            'organization_id' => $this->organization->id,
+            'customer_id' => $this->customer->id,
+            'invoice_number' => 'INV-STATE-001',
+            'status' => 'draft',
+            'payment_status' => 'PENDING',
+            'issue_date' => now(),
+            'line_extension_amount' => 1000,
+            'tax_exclusive_amount' => 1000,
+            'tax_inclusive_amount' => 1075,
+            'payable_amount' => 1075,
+        ]);
+
+        $stateService = app(InvoiceStateService::class);
+        $stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATION_FAILED, $this->user, 'test');
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_VALIDATION, $this->user, 'retry validation');
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::SIGN_FAILED]);
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'retry signing');
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMIT_FAILED]);
+        $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_TRANSMIT, $this->user, 'retry transmit');
+
+        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMITTED]);
+
+        $this->expectException(InvoiceStateException::class);
+        $stateService->transition($invoice->fresh(), InvoiceStatus::CONFIRMED, $this->user, 'confirm should be deferred');
+    }
+
+    public function test_validate_sign_transmit_flow_stops_at_signed_before_transmission(): void
+    {
+        $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload())
+            ->assertStatus(201);
+
+        Http::fake([
+            '*/api/v1/invoice/validate' => Http::response(['message' => 'validated'], 200),
+            '*/api/v1/invoice/sign' => Http::response(['irn' => 'SIGNED-IRN-001'], 200),
+            '*/api/v1/invoice/transmit/*' => Http::response(['message' => 'transmitted'], 200),
+        ]);
+
+        $invoice = Invoice::firstOrFail();
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/validate")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'validated');
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/sign")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'signed');
+
+        $signedInvoice = $invoice->fresh();
+        $this->assertSame('SIGNED-IRN-001', $signedInvoice->irn);
+        $this->assertNotNull($signedInvoice->seller_snapshot);
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'transmitted');
+
+        $this->assertDatabaseHas('nrs_submissions', [
+            'invoice_id' => $invoice->id,
+            'action' => 'validate',
+            'status' => 'success',
+        ]);
+        $this->assertDatabaseHas('nrs_submissions', [
+            'invoice_id' => $invoice->id,
+            'action' => 'sign',
+            'status' => 'success',
+        ]);
+        $this->assertDatabaseHas('nrs_submissions', [
+            'invoice_id' => $invoice->id,
+            'action' => 'transmit',
+            'status' => 'success',
+        ]);
+    }
+
+    public function test_failed_transmission_can_be_retried_without_changing_signed_snapshot(): void
+    {
+        $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload())
+            ->assertStatus(201);
+
+        Http::fake([
+            '*/api/v1/invoice/validate' => Http::response(['message' => 'validated'], 200),
+            '*/api/v1/invoice/sign' => Http::response(['irn' => 'SIGNED-IRN-RETRY'], 200),
+            '*/api/v1/invoice/transmit/*' => Http::sequence()
+                ->push(['message' => 'service unavailable'], 503)
+                ->push(['message' => 'transmitted'], 200),
+        ]);
+
+        $invoice = Invoice::firstOrFail();
+
+        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/validate")->assertOk();
+        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/sign")->assertOk();
+
+        $signedInvoice = $invoice->fresh();
+        $buyerSnapshot = $signedInvoice->buyer_snapshot;
+        $lineSnapshot = $signedInvoice->line_snapshot;
+
+        $this->customer->update(['name' => 'Changed After Signing']);
+        $signedInvoice->lines()->first()->update(['item_name' => 'Changed After Signing']);
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")
+            ->assertStatus(503);
+
+        $this->assertSame('transmit_failed', $invoice->fresh()->status->value);
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")
+            ->assertOk()
+            ->assertJsonPath('data.status', 'transmitted');
+
+        $transmittedInvoice = $invoice->fresh();
+        $this->assertSame($buyerSnapshot['name'], $transmittedInvoice->buyer_snapshot['name']);
+        $this->assertSame($lineSnapshot[0]['item_name'], $transmittedInvoice->line_snapshot[0]['item_name']);
+
+        $this->assertDatabaseHas('nrs_submissions', [
+            'invoice_id' => $invoice->id,
+            'action' => 'transmit',
+            'status' => 'failed',
+        ]);
+        $this->assertDatabaseHas('nrs_submissions', [
+            'invoice_id' => $invoice->id,
+            'action' => 'transmit',
+            'status' => 'success',
         ]);
     }
 

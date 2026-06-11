@@ -71,11 +71,12 @@ class StoreInvoiceRequest extends FormRequest
             // Lines
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.line_id' => ['required', 'string'],
-            'lines.*.invoiced_quantity' => ['required', 'numeric'],
+            'lines.*.invoiced_quantity' => ['required', 'integer', 'min:1'],
             'lines.*.line_extension_amount' => ['required', 'numeric'],
             'lines.*.item_name' => ['required', 'string'],
             'lines.*.price_amount' => ['required', 'numeric'],
             'lines.*.unit_code' => ['nullable', 'string'],
+            'lines.*.price_unit' => ['nullable', 'string'],
             'lines.*.item_description' => ['nullable', 'string'],
             'lines.*.item_standard_id' => ['nullable', 'string'],
             'lines.*.price_base_quantity' => ['nullable', 'numeric'],
