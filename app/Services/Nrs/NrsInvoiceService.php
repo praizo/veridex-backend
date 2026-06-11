@@ -67,6 +67,11 @@ class NrsInvoiceService
      */
     public function validate(Invoice $invoice): array
     {
+        return $this->validateInvoice($invoice);
+    }
+
+    public function validateInvoice(Invoice $invoice): array
+    {
         $this->stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, request()->user(), 'NRS Validation Started');
         try {
             $result = $this->performAction($invoice, NrsAction::VALIDATE, 'api/v1/invoice/validate');
@@ -86,9 +91,14 @@ class NrsInvoiceService
      */
     public function sign(Invoice $invoice): array
     {
+        return $this->signInvoice($invoice);
+    }
+
+    public function signInvoice(Invoice $invoice): array
+    {
         $this->stateService->transition($invoice, InvoiceStatus::PENDING_SIGNING, request()->user(), 'NRS Signing Started');
         try {
-            $result = $this->performAction($invoice, NrsAction::SIGN, 'api/v1/invoice/sign');
+            $signResult = $this->performAction($invoice, NrsAction::SIGN, 'api/v1/invoice/sign');
             $this->stateService->transition($invoice, InvoiceStatus::SIGNED, request()->user(), 'NRS Signing Succeeded');
             $this->activityLog->log(request()->user(), 'NRS_SIGN', $invoice, "Successfully signed invoice. IRN: {$invoice->irn}");
         } catch (\Throwable $e) {
@@ -97,13 +107,23 @@ class NrsInvoiceService
             throw $e;
         }
 
-        return $result;
+        $transmitResult = $this->transmitInvoice($invoice->fresh());
+
+        return [
+            'sign' => $signResult,
+            'transmit' => $transmitResult,
+        ];
     }
 
     /**
      * Step 3: Transmit the signed invoice to the customer.
      */
     public function transmit(Invoice $invoice): array
+    {
+        return $this->transmitInvoice($invoice);
+    }
+
+    public function transmitInvoice(Invoice $invoice): array
     {
         if (! $invoice->irn) {
             throw new NrsApiException('Cannot transmit an invoice without an IRN.');
@@ -127,6 +147,11 @@ class NrsInvoiceService
      * Update payment status of a signed invoice on NRS.
      */
     public function updatePayment(Invoice $invoice, string $status, ?string $reference = null): array
+    {
+        return $this->updatePaymentStatus($invoice, $status, $reference);
+    }
+
+    public function updatePaymentStatus(Invoice $invoice, string $status, ?string $reference = null): array
     {
         if (! $invoice->irn) {
             throw new NrsApiException('Cannot update payment status for an invoice without an IRN.');
@@ -181,6 +206,11 @@ class NrsInvoiceService
             );
             throw $e;
         }
+    }
+
+    public function downloadOfficialArtifacts(Invoice $invoice): array
+    {
+        return app(NrsArtifactService::class)->downloadAndStorePdf($invoice);
     }
 
     /**

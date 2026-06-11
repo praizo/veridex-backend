@@ -1,0 +1,26 @@
+{
+  "business_id": "{{TEST_BUSINESS_ID}}",
+  "irn": "{{TEST_IRN}}",
+  "invoice_kind": "B2B",
+  "issue_date": "2026-06-11",
+  "invoice_type_code": "380",
+  "document_currency_code": "NGN",
+  "accounting_supplier_party": {
+    "party_name": "{{SUPPLIER_NAME}}",
+    "tin": "{{SUPPLIER_TIN}}"
+  },
+  "accounting_customer_party": {
+    "party_name": "{{CUSTOMER_NAME}}",
+    "tin": "{{CUSTOMER_TIN}}"
+  },
+  "legal_monetary_total": {
+    "payable_amount": 1075
+  },
+  "invoice_line": [
+    {
+      "hsn_code": "{{HS_CODE}}",
+      "product_category": "{{PRODUCT_CATEGORY}}",
+      "invoiced_quantity": 1
+    }
+  ]
+}

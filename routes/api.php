@@ -10,6 +10,7 @@ use App\Http\Controllers\Api\NrsWebhookController;
 use App\Http\Controllers\Api\OnboardingController;
 use App\Http\Controllers\Api\OrganizationController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\ReportController;
 use App\Http\Controllers\Api\TeamController;
 use Illuminate\Support\Facades\Route;
@@ -44,6 +45,8 @@ Route::prefix('v1')->group(function () {
     Route::middleware(['auth:sanctum', 'throttle:api'])->group(function () {
         Route::post('/logout', [AuthController::class, 'logout']);
         Route::get('/me', [AuthController::class, 'me']);
+        Route::get('/profile', [ProfileController::class, 'show']);
+        Route::patch('/profile', [ProfileController::class, 'update']);
 
         // Onboarding
         Route::post('/onboarding/complete', [OnboardingController::class, 'completeOnboarding']);
@@ -89,10 +92,6 @@ Route::prefix('v1')->group(function () {
                 Route::post('validate', [InvoiceController::class, 'validateOnNrs']);
                 Route::post('sign', [InvoiceController::class, 'signOnNrs']);
                 Route::post('transmit', [InvoiceController::class, 'transmitOnNrs']);
-                Route::post('confirm', [InvoiceController::class, 'confirmOnNrs']);
-
-                // Exchange diagnostics
-                Route::get('lookup', [InvoiceController::class, 'lookupIrn']);
 
                 // Phase 5 Additions
                 Route::get('download', [InvoiceController::class, 'downloadPdf']);

@@ -43,7 +43,19 @@ class SensitiveDataRedactor
         foreach (config('audit.sensitive_keys', []) as $sensitiveKey) {
             $candidate = strtolower(str_replace(['-', ' '], '_', $sensitiveKey));
 
-            if ($normalized === $candidate || str_contains($normalized, $candidate)) {
+            if ($normalized === $candidate) {
+                return true;
+            }
+
+            if (strlen($candidate) <= 3) {
+                if (str_ends_with($normalized, '_'.$candidate)) {
+                    return true;
+                }
+
+                continue;
+            }
+
+            if (str_contains($normalized, $candidate)) {
                 return true;
             }
         }

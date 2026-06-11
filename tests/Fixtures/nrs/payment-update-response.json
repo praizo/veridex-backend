@@ -1,0 +1,5 @@
+{
+  "message": "Payment status updated successfully",
+  "status": "PAID",
+  "irn": "{{SIGNED_IRN}}"
+}

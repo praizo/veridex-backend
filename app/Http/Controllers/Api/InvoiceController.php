@@ -124,7 +124,7 @@ class InvoiceController extends Controller
 
         $this->nrsService->validate($invoice);
 
-        return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
+        return new InvoiceResource($invoice->fresh()->load(['customer', 'lines', 'organization', 'nrsSubmissions', 'stateTransitions']));
     }
 
     /**
@@ -136,7 +136,7 @@ class InvoiceController extends Controller
 
         $this->nrsService->sign($invoice);
 
-        return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
+        return new InvoiceResource($invoice->fresh()->load(['customer', 'lines', 'organization', 'nrsSubmissions', 'stateTransitions']));
     }
 
     /**
@@ -148,7 +148,7 @@ class InvoiceController extends Controller
 
         $this->nrsService->transmit($invoice);
 
-        return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
+        return new InvoiceResource($invoice->fresh()->load(['customer', 'lines', 'organization', 'nrsSubmissions', 'stateTransitions']));
     }
 
     /**

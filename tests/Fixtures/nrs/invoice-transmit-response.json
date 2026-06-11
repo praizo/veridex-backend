@@ -1,0 +1,5 @@
+{
+  "message": "Invoice transmitted successfully",
+  "status": "TRANSMITTED",
+  "irn": "{{SIGNED_IRN}}"
+}

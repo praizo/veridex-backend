@@ -23,7 +23,8 @@ class AddMemberRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'email' => ['required', 'email', 'exists:users,email'],
+            'name' => ['required', 'string', 'min:2', 'max:255'],
+            'email' => ['required', 'email', 'max:255'],
             'role' => ['required', 'in:admin,editor,viewer'],
         ];
     }

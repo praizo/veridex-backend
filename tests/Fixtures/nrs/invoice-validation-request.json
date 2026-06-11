@@ -1,0 +1,44 @@
+{
+  "business_id": "{{TEST_BUSINESS_ID}}",
+  "irn": "{{TEST_IRN}}",
+  "invoice_kind": "B2B",
+  "issue_date": "2026-06-11",
+  "invoice_type_code": "380",
+  "document_currency_code": "NGN",
+  "tax_currency_code": "NGN",
+  "accounting_supplier_party": {
+    "party_name": "{{SUPPLIER_NAME}}",
+    "tin": "{{SUPPLIER_TIN}}",
+    "email": "{{SUPPLIER_EMAIL}}",
+    "telephone": "{{SUPPLIER_TELEPHONE}}"
+  },
+  "accounting_customer_party": {
+    "party_name": "{{CUSTOMER_NAME}}",
+    "tin": "{{CUSTOMER_TIN}}",
+    "email": "{{CUSTOMER_EMAIL}}",
+    "telephone": "{{CUSTOMER_TELEPHONE}}"
+  },
+  "legal_monetary_total": {
+    "line_extension_amount": 1000,
+    "tax_exclusive_amount": 1000,
+    "tax_inclusive_amount": 1075,
+    "payable_amount": 1075
+  },
+  "invoice_line": [
+    {
+      "hsn_code": "{{HS_CODE}}",
+      "product_category": "{{PRODUCT_CATEGORY}}",
+      "invoiced_quantity": 1,
+      "line_extension_amount": 1000,
+      "item": {
+        "name": "{{ITEM_NAME}}",
+        "description": "{{ITEM_DESCRIPTION}}"
+      },
+      "price": {
+        "price_amount": 1000,
+        "base_quantity": 1,
+        "price_unit": "EA"
+      }
+    }
+  ]
+}

@@ -6,8 +6,12 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\AddMemberRequest;
 use App\Models\Organization;
 use App\Models\User;
+use App\Notifications\TeamInvitationNotification;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TeamController extends Controller
@@ -30,6 +34,13 @@ class TeamController extends Controller
         }
     }
 
+    private function frontendUrl(string $path): string
+    {
+        $frontendUrl = rtrim((string) config('app.frontend_url', env('FRONTEND_URL', config('app.url'))), '/');
+
+        return $frontendUrl.'/'.ltrim($path, '/');
+    }
+
     public function index(Request $request): JsonResponse
     {
         $orgId = $request->user()->currentOrganizationId();
@@ -42,6 +53,7 @@ class TeamController extends Controller
                 'email' => $user->email,
                 'role' => $user->pivot->role,
                 'joined_at' => $user->pivot->created_at,
+                'status' => $user->email_verified_at ? 'active' : 'invited',
             ];
         });
 
@@ -68,8 +80,19 @@ class TeamController extends Controller
         }
 
         $newUser = User::where('email', $request->email)->first();
+        $wasCreated = false;
+
         if (! $newUser) {
-            return response()->json(['message' => 'This email is not registered on Veridex.'], 404);
+            $newUser = User::create([
+                'name' => $request->input('name'),
+                'email' => $request->email,
+                'password' => Hash::make(Str::password(32)),
+                'current_organization_id' => $org->id,
+                'onboarding_completed_at' => now(),
+            ]);
+            $wasCreated = true;
+        } elseif (! $newUser->email_verified_at && $request->filled('name')) {
+            $newUser->forceFill(['name' => $request->input('name')])->save();
         }
 
         // Check if already a member
@@ -79,15 +102,43 @@ class TeamController extends Controller
 
         $org->users()->attach($newUser->id, ['role' => $request->role]);
 
+        $updates = [];
+        if (! $newUser->current_organization_id) {
+            $updates['current_organization_id'] = $org->id;
+        }
+        if (! $newUser->onboarding_completed_at) {
+            $updates['onboarding_completed_at'] = now();
+        }
+        if ($updates !== []) {
+            $newUser->forceFill($updates)->save();
+        }
+
+        $requiresPasswordSetup = ! $newUser->email_verified_at;
+        $actionUrl = $requiresPasswordSetup
+            ? $this->frontendUrl('/reset-password?token='.Password::broker()->createToken($newUser).'&email='.urlencode($newUser->email))
+            : $this->frontendUrl('/login');
+
+        $newUser->notify(new TeamInvitationNotification(
+            organizationName: $org->name,
+            inviterName: $request->user()->name,
+            role: $request->role,
+            actionUrl: $actionUrl,
+            requiresPasswordSetup: $requiresPasswordSetup,
+        ));
+
         return response()->json([
-            'message' => 'Member added successfully',
+            'message' => $wasCreated
+                ? 'Invitation created. The user can complete signup with this email.'
+                : 'Member added successfully',
             'data' => [
-                'id' => $newUser->id,
+                'id' => $newUser->uuid,
                 'name' => $newUser->name,
                 'email' => $newUser->email,
                 'role' => $request->role,
+                'joined_at' => now(),
+                'status' => $newUser->email_verified_at ? 'active' : 'invited',
             ],
-        ]);
+        ], $wasCreated ? 201 : 200);
     }
 
     public function update(Request $request, User $member): JsonResponse

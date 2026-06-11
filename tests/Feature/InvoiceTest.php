@@ -549,7 +549,7 @@ class InvoiceTest extends TestCase
         $stateService->transition($invoice->fresh(), InvoiceStatus::CONFIRMED, $this->user, 'confirm should be deferred');
     }
 
-    public function test_validate_sign_transmit_flow_stops_at_signed_before_transmission(): void
+    public function test_validate_sign_flow_auto_transmits_to_terminal_state(): void
     {
         $this->actingAs($this->user)
             ->postJson('/api/v1/invoices', $this->validInvoicePayload())
@@ -571,16 +571,11 @@ class InvoiceTest extends TestCase
         $this->actingAs($this->user)
             ->postJson("/api/v1/invoices/{$invoice->uuid}/sign")
             ->assertOk()
-            ->assertJsonPath('data.status', 'signed');
-
-        $signedInvoice = $invoice->fresh();
-        $this->assertSame('SIGNED-IRN-001', $signedInvoice->irn);
-        $this->assertNotNull($signedInvoice->seller_snapshot);
-
-        $this->actingAs($this->user)
-            ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")
-            ->assertOk()
             ->assertJsonPath('data.status', 'transmitted');
+
+        $transmittedInvoice = $invoice->fresh();
+        $this->assertSame('SIGNED-IRN-001', $transmittedInvoice->irn);
+        $this->assertNotNull($transmittedInvoice->seller_snapshot);
 
         $this->assertDatabaseHas('nrs_submissions', [
             'invoice_id' => $invoice->id,
@@ -616,20 +611,15 @@ class InvoiceTest extends TestCase
         $invoice = Invoice::firstOrFail();
 
         $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/validate")->assertOk();
-        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/sign")->assertOk();
+        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/sign")->assertStatus(503);
 
         $signedInvoice = $invoice->fresh();
+        $this->assertSame('transmit_failed', $signedInvoice->status->value);
         $buyerSnapshot = $signedInvoice->buyer_snapshot;
         $lineSnapshot = $signedInvoice->line_snapshot;
 
         $this->customer->update(['name' => 'Changed After Signing']);
         $signedInvoice->lines()->first()->update(['item_name' => 'Changed After Signing']);
-
-        $this->actingAs($this->user)
-            ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")
-            ->assertStatus(503);
-
-        $this->assertSame('transmit_failed', $invoice->fresh()->status->value);
 
         $this->actingAs($this->user)
             ->postJson("/api/v1/invoices/{$invoice->uuid}/transmit")

@@ -1,0 +1,4 @@
+{
+  "payment_status": "PAID",
+  "reference": "{{PAYMENT_REFERENCE}}"
+}

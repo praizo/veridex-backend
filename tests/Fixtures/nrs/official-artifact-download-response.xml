@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Invoice>
+  <IRN>{{SIGNED_IRN}}</IRN>
+  <SupplierTIN>{{SUPPLIER_TIN}}</SupplierTIN>
+  <CustomerTIN>{{CUSTOMER_TIN}}</CustomerTIN>
+</Invoice>
