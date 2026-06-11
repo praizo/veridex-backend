@@ -107,7 +107,20 @@ class NrsInvoiceService
             throw $e;
         }
 
-        $transmitResult = $this->transmitInvoice($invoice->fresh());
+        // Attempt transmission but don't let its failure mask the successful sign
+        try {
+            $transmitResult = $this->transmitInvoice($invoice->fresh());
+        } catch (\Throwable $e) {
+            Log::warning("Sign succeeded but transmit failed for invoice {$invoice->id}: {$e->getMessage()}");
+
+            return [
+                'sign' => $signResult,
+                'transmit' => null,
+                'sign_succeeded' => true,
+                'transmit_failed' => true,
+                'transmit_error' => $e->getMessage(),
+            ];
+        }
 
         return [
             'sign' => $signResult,
