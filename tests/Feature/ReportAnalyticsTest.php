@@ -229,4 +229,3 @@ class ReportAnalyticsTest extends TestCase
         return $invoice;
     }
 }
-

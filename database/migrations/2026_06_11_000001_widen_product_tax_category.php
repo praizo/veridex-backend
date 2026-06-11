@@ -23,4 +23,3 @@ return new class extends Migration
         DB::statement('ALTER TABLE products MODIFY tax_category VARCHAR(2) NOT NULL DEFAULT "S"');
     }
 };
-
