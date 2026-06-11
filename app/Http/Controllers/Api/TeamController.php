@@ -2,20 +2,22 @@
 
 namespace App\Http\Controllers\Api;
 
-use App\Events\TeamMemberAdded;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\AddMemberRequest;
+use App\Http\Requests\Team\UpdateMemberRoleRequest;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\TeamService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
 class TeamController extends Controller
 {
+    public function __construct(
+        protected TeamService $teamService
+    ) {}
+
     private function currentOrganizationRole(Request $request): ?string
     {
         $currentOrgId = $request->user()->currentOrganizationId();
@@ -79,74 +81,38 @@ class TeamController extends Controller
             return response()->json(['message' => 'Only the owner can assign the owner role'], 403);
         }
 
-        $newUser = User::where('email', $request->email)->first();
-        $wasCreated = false;
-
-        if (! $newUser) {
-            $newUser = User::create([
-                'name' => $request->input('name'),
-                'email' => $request->email,
-                'password' => Hash::make(Str::password(32)),
-                'current_organization_id' => $org->id,
-                'onboarding_completed_at' => now(),
-            ]);
-            $wasCreated = true;
-        } elseif (! $newUser->email_verified_at && $request->filled('name')) {
-            $newUser->forceFill(['name' => $request->input('name')])->save();
-        }
-
         // Check if already a member
-        if ($org->users()->where('user_id', $newUser->id)->exists()) {
+        $existingUser = User::where('email', $request->email)->first();
+        if ($existingUser && $org->users()->where('user_id', $existingUser->id)->exists()) {
             return response()->json(['message' => 'User is already a member of this organization'], 422);
         }
 
-        $org->users()->attach($newUser->id, ['role' => $request->role]);
-
-        $updates = [];
-        if (! $newUser->current_organization_id) {
-            $updates['current_organization_id'] = $org->id;
-        }
-        if (! $newUser->onboarding_completed_at) {
-            $updates['onboarding_completed_at'] = now();
-        }
-        if ($updates !== []) {
-            $newUser->forceFill($updates)->save();
-        }
-
-        $requiresPasswordSetup = ! $newUser->email_verified_at;
-        $actionUrl = $requiresPasswordSetup
-            ? $this->frontendUrl('/reset-password?token='.Password::broker()->createToken($newUser).'&email='.urlencode($newUser->email))
-            : $this->frontendUrl('/login');
-
-        TeamMemberAdded::dispatch(
-            user: $newUser,
-            organizationName: $org->name,
-            inviterName: $request->user()->name,
-            role: $request->role,
-            actionUrl: $actionUrl,
-            requiresPasswordSetup: $requiresPasswordSetup,
+        $result = $this->teamService->addMember(
+            $org,
+            $request->email,
+            $request->role,
+            $request->input('name'),
+            $request->user(),
+            config('app.frontend_url', env('FRONTEND_URL', config('app.url')))
         );
 
         return response()->json([
-            'message' => $wasCreated
+            'message' => $result['was_created']
                 ? 'Invitation created. The user can complete signup with this email.'
                 : 'Member added successfully',
             'data' => [
-                'id' => $newUser->uuid,
-                'name' => $newUser->name,
-                'email' => $newUser->email,
+                'id' => $result['user']->uuid,
+                'name' => $result['user']->name,
+                'email' => $result['user']->email,
                 'role' => $request->role,
                 'joined_at' => now(),
-                'status' => $newUser->email_verified_at ? 'active' : 'invited',
+                'status' => $result['user']->email_verified_at ? 'active' : 'invited',
             ],
-        ], $wasCreated ? 201 : 200);
+        ], $result['was_created'] ? 201 : 200);
     }
 
-    public function update(Request $request, User $member): JsonResponse
+    public function update(UpdateMemberRoleRequest $request, User $member): JsonResponse
     {
-        $request->validate([
-            'role' => ['required', 'in:admin,editor,viewer,owner'],
-        ]);
 
         $currentOrgId = $request->user()->currentOrganizationId();
         $this->ensureTargetMember($member, $currentOrgId);

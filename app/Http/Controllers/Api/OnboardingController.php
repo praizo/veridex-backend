@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\OnboardingRequest;
 use App\Models\Organization;
 use App\Services\Nrs\NrsClient;
+use App\Services\OnboardingService;
+use App\Traits\HasUserPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -15,27 +17,12 @@ use Illuminate\Support\Facades\Log;
  */
 class OnboardingController extends Controller
 {
+    use HasUserPayload;
+
     public function __construct(
-        protected NrsClient $nrsClient
+        protected NrsClient $nrsClient,
+        protected OnboardingService $onboardingService
     ) {}
-
-    private function userPayload($user): array
-    {
-        $user->load('currentOrganization');
-        $organizationId = $user->currentOrganizationId();
-
-        $role = $organizationId
-            ? $user->organizations()
-                ->where('organization_id', $organizationId)
-                ->first()
-                ?->pivot
-                ?->role
-            : null;
-
-        return array_merge($user->toArray(), [
-            'current_organization_role' => $role,
-        ]);
-    }
 
     /**
      * Complete business onboarding — creates Organization and stamps the user.
@@ -51,31 +38,11 @@ class OnboardingController extends Controller
             ]);
         }
 
-        $validated = $request->validated();
-
-        $org = Organization::create([
-            'name' => $validated['organization_name'],
-            'slug' => str()->slug($validated['organization_name']).'-'.str()->random(5),
-            'email' => $user->email,
-            'tin' => $validated['tin'],
-            'nrs_business_id' => $validated['nrs_business_id'],
-            'service_id' => $validated['service_id'],
-            'telephone' => $validated['telephone'],
-            'street_name' => $validated['street_name'],
-            'city_name' => $validated['city_name'],
-            'postal_zone' => $validated['postal_zone'],
-            'country_code' => $validated['country_code'],
-        ]);
-
-        $user->organizations()->attach($org->id, ['role' => 'owner']);
-        $user->update([
-            'current_organization_id' => $org->id,
-            'onboarding_completed_at' => now(),
-        ]);
+        $result = $this->onboardingService->completeOnboarding($user, $request->validated());
 
         return response()->json([
             'message' => 'Onboarding completed successfully.',
-            'user' => $this->userPayload($user->fresh()),
+            'user' => $this->userPayload($result['user']),
         ], 201);
     }
 

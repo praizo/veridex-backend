@@ -15,14 +15,34 @@ class StoreCustomerRequest extends FormRequest
     {
         return [
             'name' => ['required', 'string', 'max:255'],
-            'type' => ['required', 'in:business,individual,government'],
-            'tin' => ['nullable', 'string'],
-            'email' => ['nullable', 'email'],
-            'telephone' => ['nullable', 'string'],
-            'street_name' => ['nullable', 'string'],
-            'city_name' => ['nullable', 'string'],
-            'postal_zone' => ['nullable', 'string'],
+            'type' => ['nullable', 'in:business,individual,government'],
+            'tin' => ['required', 'string', 'max:50'],
+            'email' => ['required', 'email', 'max:255'],
+            'phone' => ['nullable', 'string', 'max:50'],
+            'address' => ['nullable', 'string'],
+            'city' => ['nullable', 'string'],
+            'postal_zone' => ['nullable', 'string', 'max:20'],
             'country_code' => ['nullable', 'string', 'size:2'],
+        ];
+    }
+
+    /**
+     * Map frontend field names to canonical DB column names.
+     */
+    public function toServiceData(): array
+    {
+        $v = $this->validated();
+
+        return [
+            'name' => $v['name'],
+            'type' => $v['type'] ?? 'business',
+            'tin' => $v['tin'],
+            'email' => $v['email'],
+            'telephone' => $v['phone'] ?? null,
+            'street_name' => $v['address'] ?? null,
+            'city_name' => $v['city'] ?? null,
+            'postal_zone' => $v['postal_zone'] ?? null,
+            'country_code' => $v['country_code'] ?? 'NG',
         ];
     }
 }

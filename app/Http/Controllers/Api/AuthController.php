@@ -3,44 +3,32 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
 use App\Http\Requests\Auth\RegisterRequest;
+use App\Http\Requests\Auth\ResendOtpRequest;
+use App\Http\Requests\Auth\ResetPasswordRequest;
+use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Models\User;
 use App\Services\OperationalMetricService;
 use App\Services\OtpService;
+use App\Traits\HasUserPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Str;
-use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\Validation\ValidationException;
 
 class AuthController extends Controller
 {
+    use HasUserPayload;
+
     public function __construct(
         private readonly OtpService $otpService,
         private readonly OperationalMetricService $metrics,
     ) {}
-
-    private function userPayload(User $user): array
-    {
-        $user->load('currentOrganization');
-        $organizationId = $user->currentOrganizationId();
-
-        $role = $organizationId
-            ? $user->organizations()
-                ->where('organization_id', $organizationId)
-                ->first()
-                ?->pivot
-                ?->role
-            : null;
-
-        return array_merge($user->toArray(), [
-            'current_organization_role' => $role,
-        ]);
-    }
 
     private function clearAuthenticatedSession(Request $request): void
     {
@@ -134,13 +122,8 @@ class AuthController extends Controller
     /**
      * Verify OTP — creates user (for registration) or issues token (for login).
      */
-    public function verifyOtp(Request $request): JsonResponse
+    public function verifyOtp(VerifyOtpRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-            'code' => ['required', 'string', 'size:6'],
-            'type' => ['required', 'in:registration,login'],
-        ]);
 
         $otp = $this->otpService->verify(
             $request->email,
@@ -183,12 +166,8 @@ class AuthController extends Controller
     /**
      * Resend OTP — generates a fresh code for an existing flow.
      */
-    public function resendOtp(Request $request): JsonResponse
+    public function resendOtp(ResendOtpRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-            'type' => ['required', 'in:registration,login'],
-        ]);
 
         $throttleKey = 'otp-resend:'.$request->type.':'.Str::lower($request->email).'|'.$request->ip();
         if (RateLimiter::tooManyAttempts($throttleKey, 3)) {
@@ -221,11 +200,8 @@ class AuthController extends Controller
         ]);
     }
 
-    public function forgotPassword(Request $request): JsonResponse
+    public function forgotPassword(ForgotPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'email' => ['required', 'email'],
-        ]);
 
         $status = Password::sendResetLink($request->only('email'));
 
@@ -234,13 +210,8 @@ class AuthController extends Controller
         ], $status === Password::RESET_THROTTLED ? 429 : 200);
     }
 
-    public function resetPassword(Request $request): JsonResponse
+    public function resetPassword(ResetPasswordRequest $request): JsonResponse
     {
-        $request->validate([
-            'token' => ['required', 'string'],
-            'email' => ['required', 'email'],
-            'password' => ['required', 'string', PasswordRule::min(8)->letters()->mixedCase()->numbers()->symbols(), 'confirmed'],
-        ]);
 
         $status = Password::reset(
             $request->only('email', 'password', 'password_confirmation', 'token'),

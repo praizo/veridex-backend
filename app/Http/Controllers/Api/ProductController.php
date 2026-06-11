@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Product\StoreProductRequest;
+use App\Http\Requests\Product\UpdateProductRequest;
 use App\Http\Resources\ProductResource;
 use App\Models\Product;
 use App\Services\ProductService;
@@ -15,28 +17,6 @@ class ProductController extends Controller
         protected ProductService $productService
     ) {}
 
-    private function mapProductPayload(array $validated): array
-    {
-        return [
-            'name' => $validated['name'],
-            'description' => $validated['description'] ?? null,
-            'quantity' => $validated['quantity'] ?? 1,
-            'unit_price' => $validated['price'],
-            'unit_code' => $validated['unit'] ?? 'EA',
-            'hs_code' => $validated['hsn_code'],
-            'item_category' => $validated['item_category'] ?? null,
-            'tax_category' => $validated['product_category'],
-            'tax_rate' => $validated['tax_rate'] ?? 7.5,
-        ];
-    }
-
-    private function checkProductTenancy(Product $product): void
-    {
-        if ($product->organization_id !== request()->user()->current_organization_id) {
-            abort(403, 'Unauthorized access to product');
-        }
-    }
-
     public function index(Request $request): JsonResponse
     {
         $products = Product::where('organization_id', $request->user()->current_organization_id)
@@ -46,23 +26,10 @@ class ProductController extends Controller
         return response()->json(ProductResource::collection($products)->response()->getData(true));
     }
 
-    public function store(Request $request): JsonResponse
+    public function store(StoreProductRequest $request): JsonResponse
     {
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'sku' => ['nullable', 'string', 'max:50'],
-            'quantity' => ['nullable', 'integer', 'min:1'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'unit' => ['nullable', 'string', 'max:50'],
-            'hsn_code' => ['required', 'string'],
-            'item_category' => ['nullable', 'string', 'max:1000'],
-            'product_category' => ['required', 'string'],
-            'tax_rate' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
         $product = $this->productService->create(
-            $this->mapProductPayload($validated),
+            $request->toServiceData(),
             $request->user()->current_organization_id
         );
 
@@ -72,31 +39,18 @@ class ProductController extends Controller
         ], 201);
     }
 
-    public function show(Product $product): ProductResource
+    public function show(Request $request, Product $product): ProductResource
     {
-        $this->checkProductTenancy($product);
+        $this->authorizeOrganizationAccess($product, $request);
 
         return new ProductResource($product);
     }
 
-    public function update(Request $request, Product $product): JsonResponse
+    public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $this->checkProductTenancy($product);
+        $this->authorizeOrganizationAccess($product, $request);
 
-        $validated = $request->validate([
-            'name' => ['required', 'string', 'max:255'],
-            'description' => ['nullable', 'string', 'max:1000'],
-            'sku' => ['nullable', 'string', 'max:50'],
-            'quantity' => ['nullable', 'integer', 'min:1'],
-            'price' => ['required', 'numeric', 'min:0'],
-            'unit' => ['nullable', 'string', 'max:50'],
-            'hsn_code' => ['required', 'string'],
-            'item_category' => ['nullable', 'string', 'max:1000'],
-            'product_category' => ['required', 'string'],
-            'tax_rate' => ['nullable', 'numeric', 'min:0'],
-        ]);
-
-        $this->productService->update($product, $this->mapProductPayload($validated));
+        $this->productService->update($product, $request->toServiceData());
 
         return response()->json([
             'message' => 'Product updated successfully.',
@@ -104,14 +58,21 @@ class ProductController extends Controller
         ]);
     }
 
-    public function destroy(Product $product): JsonResponse
+    public function destroy(Request $request, Product $product): JsonResponse
     {
-        $this->checkProductTenancy($product);
+        $this->authorizeOrganizationAccess($product, $request);
 
         $product->delete();
 
         return response()->json([
             'message' => 'Product deleted successfully.',
         ]);
+    }
+
+    private function authorizeOrganizationAccess(Product $product, Request $request): void
+    {
+        if ($product->organization_id !== $request->user()->current_organization_id) {
+            abort(403, 'Unauthorized access to product');
+        }
     }
 }
