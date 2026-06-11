@@ -611,7 +611,10 @@ class InvoiceTest extends TestCase
         $invoice = Invoice::firstOrFail();
 
         $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/validate")->assertOk();
-        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/sign")->assertStatus(503);
+        $this->actingAs($this->user)->postJson("/api/v1/invoices/{$invoice->uuid}/sign")
+            ->assertStatus(207)
+            ->assertJsonPath('transmit_failed', true)
+            ->assertJsonPath('data.status', 'transmit_failed');
 
         $signedInvoice = $invoice->fresh();
         $this->assertSame('transmit_failed', $signedInvoice->status->value);

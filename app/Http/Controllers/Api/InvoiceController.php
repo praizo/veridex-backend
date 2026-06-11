@@ -130,13 +130,24 @@ class InvoiceController extends Controller
     /**
      * Step 2: Sign on NRS.
      */
-    public function signOnNrs(Invoice $invoice): InvoiceResource
+    public function signOnNrs(Invoice $invoice): JsonResponse
     {
         $this->checkInvoiceTenancy($invoice);
 
-        $this->nrsService->sign($invoice);
+        $result = $this->nrsService->sign($invoice);
 
-        return new InvoiceResource($invoice->fresh()->load(['customer', 'lines', 'organization', 'nrsSubmissions', 'stateTransitions']));
+        $resource = new InvoiceResource($invoice->fresh()->load(['customer', 'lines', 'organization', 'nrsSubmissions', 'stateTransitions']));
+
+        // Sign succeeded but transmit failed — return 207 Multi-Status
+        if (! empty($result['transmit_failed'])) {
+            return response()->json([
+                'data' => $resource->resolve(request()),
+                'transmit_failed' => true,
+                'transmit_error' => $result['transmit_error'] ?? 'Transmission failed after signing.',
+            ], 207);
+        }
+
+        return response()->json(['data' => $resource->resolve(request())]);
     }
 
     /**

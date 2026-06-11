@@ -164,7 +164,9 @@ class NrsPlatformActionTest extends TestCase
 
         $this->actingAs($this->user)
             ->postJson("/api/v1/invoices/{$invoice->uuid}/sign")
-            ->assertStatus(503);
+            ->assertStatus(207)
+            ->assertJsonPath('transmit_failed', true)
+            ->assertJsonPath('data.status', 'transmit_failed');
 
         $this->assertSame('transmit_failed', $invoice->fresh()->status->value);
         $this->assertNotNull($invoice->fresh()->seller_snapshot);
