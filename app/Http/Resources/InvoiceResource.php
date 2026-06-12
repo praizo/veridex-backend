@@ -20,7 +20,7 @@ class InvoiceResource extends JsonResource
     private function statusLabel(string $status): string
     {
         if ($status === 'transmit_failed') {
-            return 'Signed - Transmission failed';
+            return 'Transmission failed';
         }
 
         return [

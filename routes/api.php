@@ -95,6 +95,7 @@ Route::prefix('v1')->group(function () {
 
                 // Phase 5 Additions
                 Route::get('download', [InvoiceController::class, 'downloadPdf']);
+                Route::get('download-xml', [InvoiceController::class, 'downloadXml']);
                 Route::patch('payment', [InvoiceController::class, 'updatePaymentStatus']);
             });
 

@@ -96,7 +96,7 @@ class NrsArtifactService
         ];
     }
 
-    public function downloadAndStoreXmlIfAvailable(Invoice $invoice): ?array
+    public function downloadAndStoreXmlIfAvailable(Invoice $invoice, bool $throw = false): ?array
     {
         $this->ensureDownloadable($invoice);
 
@@ -112,7 +112,7 @@ class NrsArtifactService
             $response = $this->client->get(
                 "api/v1/invoice/download/{$invoice->irn}",
                 [],
-                ['Accept' => 'application/xml'],
+                ['Accept' => 'application/json'],
                 [
                     'invoice_id' => $invoice->id,
                     'invoice_uuid' => $invoice->uuid,
@@ -124,6 +124,17 @@ class NrsArtifactService
             $content = $response->body();
             $xmlContent = $this->artifactContentFromResponse($content) ?? $content;
             if ($xmlContent === '' || ! $this->isXml($xmlContent)) {
+                if ($throw) {
+                    throw new NrsApiException(
+                        'NRS download did not return a supported invoice artifact for this invoice.',
+                        502,
+                        [
+                            'content_type' => $response->header('Content-Type'),
+                            'body_preview' => mb_substr(trim($xmlContent), 0, 120),
+                        ]
+                    );
+                }
+
                 return null;
             }
 
@@ -144,7 +155,11 @@ class NrsArtifactService
                 'path' => $path,
             ];
         } catch (\Throwable $e) {
-            Log::warning('Official NRS XML artifact could not be downloaded.', [
+            if ($throw) {
+                throw $e;
+            }
+
+            Log::warning('Official NRS invoice artifact could not be downloaded.', [
                 'invoice_id' => $invoice->id,
                 'irn' => $invoice->irn,
                 'error' => $e->getMessage(),
@@ -290,11 +305,11 @@ class NrsArtifactService
         if ($payload) {
             if ($this->isInvoiceMetadataPayload($payload)) {
                 throw new NrsApiException(
-                    'NRS encrypted invoice artifact decrypted to invoice metadata, not a PDF. The download endpoint is not returning an official PDF artifact for this IRN.',
+                'NRS encrypted invoice artifact decrypted to invoice metadata, not a downloadable invoice artifact for this IRN.',
                     502,
                     [
                         'envelope' => 'encrypted',
-                        'decryption' => 'succeeded',
+                    'decryption' => 'succeeded',
                         'response_kind' => 'invoice_metadata',
                         'irn' => $payload['irn'] ?? null,
                         'business_id' => $payload['business_id'] ?? null,
@@ -308,15 +323,24 @@ class NrsArtifactService
                     continue;
                 }
 
-                $decoded = $this->decodePdfDataUri($payload[$key]) ?? $this->decodePdfString($payload[$key]);
-                if ($decoded !== null) {
-                    return $decoded;
+                if ($this->isXml($payload[$key])) {
+                    return $payload[$key];
+                }
+
+                $decodedPdf = $this->decodePdfDataUri($payload[$key]) ?? $this->decodePdfString($payload[$key]);
+                if ($decodedPdf !== null) {
+                    return $decodedPdf;
+                }
+
+                $decodedXml = $this->decodeXmlDataUri($payload[$key]) ?? $this->decodeXmlString($payload[$key]);
+                if ($decodedXml !== null) {
+                    return $decodedXml;
                 }
             }
         }
 
         throw new NrsApiException(
-            'NRS encrypted invoice artifact decrypted successfully, but the decrypted payload is not a PDF artifact.',
+            'NRS encrypted invoice artifact decrypted successfully, but the decrypted payload is not a supported invoice artifact.',
             502,
             [
                 'envelope' => 'encrypted',
@@ -338,11 +362,30 @@ class NrsArtifactService
         return $this->decodePdfString(substr($trimmed, strlen('data:application/pdf;base64,')));
     }
 
+    private function decodeXmlDataUri(string $value): ?string
+    {
+        $trimmed = trim($value);
+        foreach (['data:application/xml;base64,', 'data:text/xml;base64,'] as $prefix) {
+            if (str_starts_with($trimmed, $prefix)) {
+                return $this->decodeXmlString(substr($trimmed, strlen($prefix)));
+            }
+        }
+
+        return null;
+    }
+
     private function decodePdfString(string $value): ?string
     {
         $decoded = $this->base64UrlDecode(trim($value));
 
         return $decoded !== null && $this->isPdf($decoded) ? $decoded : null;
+    }
+
+    private function decodeXmlString(string $value): ?string
+    {
+        $decoded = $this->base64UrlDecode(trim($value));
+
+        return $decoded !== null && $this->isXml($decoded) ? $decoded : null;
     }
 
     private function base64UrlDecode(string $value): ?string

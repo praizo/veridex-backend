@@ -11,6 +11,7 @@ use App\Models\Invoice;
 use App\Services\ActivityLogService;
 use App\Services\InvoicePdfService;
 use App\Services\InvoiceService;
+use App\Services\Nrs\NrsArtifactService;
 use App\Services\Nrs\NrsInvoiceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -21,6 +22,7 @@ class InvoiceController extends Controller
     public function __construct(
         protected InvoiceService $invoiceService,
         protected NrsInvoiceService $nrsService,
+        protected NrsArtifactService $artifactService,
         protected InvoicePdfService $pdfService,
         protected ActivityLogService $activityLog
     ) {}
@@ -214,6 +216,32 @@ class InvoiceController extends Controller
         $this->checkInvoiceTenancy($invoice);
 
         return $this->pdfService->generate($invoice);
+    }
+
+    /**
+     * Download the official NRS invoice artifact.
+     */
+    public function downloadXml(Invoice $invoice)
+    {
+        $this->checkInvoiceTenancy($invoice);
+
+        $artifact = $this->artifactService->downloadAndStoreXmlIfAvailable($invoice, true);
+
+        if (! $artifact) {
+            return response()->json([
+                'message' => 'Official NRS invoice artifact is not available for this invoice yet.',
+                'retryable' => true,
+            ], 422);
+        }
+
+        $fileName = "invoice_{$invoice->invoice_number}_ubl.xml";
+
+        return response($artifact['content'], 200, [
+            'Content-Type' => 'application/xml',
+            'Content-Disposition' => 'attachment; filename="'.$fileName.'"',
+            'X-NRS-Official-Artifact' => 'true',
+            'X-NRS-Artifact-Hash' => $artifact['hash'],
+        ]);
     }
 
     /**
