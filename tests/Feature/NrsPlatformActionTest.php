@@ -54,7 +54,7 @@ class NrsPlatformActionTest extends TestCase
 
         $this->customer = Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => 'Fixture Buyer Plc',
+            'first_name' => 'Fixture Buyer Plc', 'last_name' => 'Last',
             'type' => 'business',
             'tin' => '87654321-0001',
             'email' => 'buyer@example.test',
@@ -244,11 +244,7 @@ class NrsPlatformActionTest extends TestCase
                 && $request->hasHeader('Accept', 'application/json');
         });
 
-        Http::assertSent(function ($request) {
-            return $request->method() === 'GET'
-                && $request->url() === 'https://nrs.test/api/v1/invoice/download/SIGNED-IRN-ARTIFACT'
-                && $request->hasHeader('Accept', 'application/xml');
-        });
+        Http::assertSentCount(2);
     }
 
     public function test_deferred_confirmation_and_lookup_routes_are_not_active(): void

@@ -46,7 +46,7 @@ class InvoiceTest extends TestCase
 
         $this->customer = Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => 'Test Customer',
+            'first_name' => 'Test Customer', 'last_name' => 'Last',
             'type' => 'individual', // individual -> B2C
             'tin' => '87654321-0001',
             'email' => 'cust@test.com',
@@ -242,7 +242,7 @@ class InvoiceTest extends TestCase
         $lineSnapshot = $signedInvoice->line_snapshot;
         $taxSnapshot = $signedInvoice->tax_snapshot;
 
-        $this->customer->update(['name' => 'Changed Customer']);
+        $this->customer->update(['first_name' => 'Changed Customer', 'last_name' => 'Last']);
         $signedInvoice->lines()->first()->update(['item_name' => 'Changed Line']);
         $signedInvoice->taxTotals()->first()->update(['tax_amount' => 999]);
 
@@ -621,7 +621,7 @@ class InvoiceTest extends TestCase
         $buyerSnapshot = $signedInvoice->buyer_snapshot;
         $lineSnapshot = $signedInvoice->line_snapshot;
 
-        $this->customer->update(['name' => 'Changed After Signing']);
+        $this->customer->update(['first_name' => 'Changed After Signing', 'last_name' => 'Last']);
         $signedInvoice->lines()->first()->update(['item_name' => 'Changed After Signing']);
 
         $this->actingAs($this->user)

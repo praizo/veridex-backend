@@ -182,7 +182,7 @@ class ReportAnalyticsTest extends TestCase
     {
         return Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => $name,
+            'first_name' => $name, 'last_name' => 'Last',
             'type' => $type,
             'tin' => fake()->numerify('########-####'),
             'email' => fake()->safeEmail(),

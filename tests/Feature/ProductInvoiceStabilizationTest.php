@@ -41,7 +41,7 @@ class ProductInvoiceStabilizationTest extends TestCase
 
         $this->customer = Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => 'Business Buyer',
+            'first_name' => 'Business Buyer', 'last_name' => 'Last',
             'type' => 'business',
             'tin' => '87654321-0001',
             'email' => 'buyer@test.com',

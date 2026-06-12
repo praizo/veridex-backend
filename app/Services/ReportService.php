@@ -34,15 +34,24 @@ class ReportService
         $topCustomers = (clone $baseQuery)
             ->join('customers', 'customers.id', '=', 'invoices.customer_id')
             ->selectRaw('
-                customers.name as customer_name,
+                customers.first_name,
+                customers.last_name,
                 customers.type as customer_type,
                 COUNT(*) as total_count,
                 SUM(invoices.payable_amount) as total_amount
             ')
-            ->groupBy('customers.id', 'customers.name', 'customers.type')
+            ->groupBy('customers.id', 'customers.first_name', 'customers.last_name', 'customers.type')
             ->orderByDesc('total_amount')
             ->limit(8)
-            ->get();
+            ->get()
+            ->map(function ($row) {
+                return [
+                    'customer_name' => trim($row->first_name . ' ' . $row->last_name),
+                    'customer_type' => $row->customer_type,
+                    'total_count' => $row->total_count,
+                    'total_amount' => $row->total_amount,
+                ];
+            });
 
         $monthlyTrend = (clone $baseQuery)
             ->select(['issue_date', 'payable_amount', 'tax_inclusive_amount', 'tax_exclusive_amount'])

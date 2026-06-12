@@ -49,7 +49,7 @@ class PdfArtifactQaTest extends TestCase
 
         $this->customer = Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => 'Original Buyer Plc',
+            'first_name' => 'Original Buyer Plc', 'last_name' => 'Last',
             'type' => 'business',
             'tin' => '87654321-0001',
             'email' => 'buyer@test.com',
@@ -67,7 +67,7 @@ class PdfArtifactQaTest extends TestCase
         $sellerSnapshot = $invoice->seller_snapshot;
 
         $this->organization->update(['name' => 'Changed Supplier Ltd']);
-        $this->customer->update(['name' => 'Changed Buyer Plc']);
+        $this->customer->update(['first_name' => 'Changed Buyer Plc', 'last_name' => 'Last']);
         $invoice->lines()->first()->update(['item_name' => 'Changed Line Item']);
 
         $pdfInvoice = app(InvoicePdfService::class)->applyImmutableSnapshots($invoice->fresh());

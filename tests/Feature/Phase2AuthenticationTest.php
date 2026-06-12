@@ -27,7 +27,7 @@ class Phase2AuthenticationTest extends TestCase
         $password = 'StrongPass1!';
 
         $this->postJson('/api/v1/register', [
-            'name' => 'Secure User',
+            'first_name' => 'Secure User', 'last_name' => 'Last',
             'email' => 'secure@example.com',
             'password' => $password,
             'password_confirmation' => $password,
@@ -222,7 +222,7 @@ class Phase2AuthenticationTest extends TestCase
         $this->getJson('/api/v1/me')->assertOk();
 
         $this->postJson('/api/v1/register', [
-            'name' => 'Pending User',
+            'first_name' => 'Pending User', 'last_name' => 'Last',
             'email' => 'pending-registration@example.com',
             'password' => 'StrongPass1!',
             'password_confirmation' => 'StrongPass1!',

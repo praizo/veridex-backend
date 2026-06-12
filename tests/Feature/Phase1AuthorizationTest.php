@@ -127,7 +127,7 @@ class Phase1AuthorizationTest extends TestCase
 
         $customer = Customer::create([
             'organization_id' => $otherOrganization->id,
-            'name' => 'Other Customer',
+            'first_name' => 'Other Customer', 'last_name' => 'Last',
             'type' => 'business',
             'tin' => '87654321-0001',
             'email' => 'other@test.com',

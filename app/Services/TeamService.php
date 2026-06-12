@@ -20,7 +20,8 @@ class TeamService
         Organization $org,
         string $email,
         string $role,
-        ?string $name,
+        ?string $firstName,
+        ?string $lastName,
         User $inviter,
         string $frontendBaseUrl
     ): array {
@@ -29,15 +30,16 @@ class TeamService
 
         if (! $newUser) {
             $newUser = User::create([
-                'name' => $name,
+                'first_name' => $firstName,
+                'last_name' => $lastName,
                 'email' => $email,
                 'password' => Hash::make(Str::password(32)),
                 'current_organization_id' => $org->id,
                 'onboarding_completed_at' => now(),
             ]);
             $wasCreated = true;
-        } elseif (! $newUser->email_verified_at && $name) {
-            $newUser->forceFill(['name' => $name])->save();
+        } elseif (! $newUser->email_verified_at && ($firstName || $lastName)) {
+            $newUser->forceFill(['first_name' => $firstName, 'last_name' => $lastName])->save();
         }
 
         $org->users()->attach($newUser->id, ['role' => $role]);

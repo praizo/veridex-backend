@@ -91,7 +91,8 @@ class TeamController extends Controller
             $org,
             $request->email,
             $request->role,
-            $request->input('name'),
+            $request->input('first_name'),
+            $request->input('last_name'),
             $request->user(),
             config('app.frontend_url', env('FRONTEND_URL', config('app.url')))
         );

@@ -47,7 +47,8 @@ class TeamOnboardingProfileTest extends TestCase
         $admin = $this->createMember($organization, 'admin');
 
         $response = $this->actingAs($admin)->postJson('/api/v1/team/members', [
-            'name' => 'New Teammate',
+            'first_name' => 'New',
+            'last_name' => 'Teammate',
             'email' => 'new.teammate@example.com',
             'role' => 'editor',
         ]);
@@ -77,12 +78,14 @@ class TeamOnboardingProfileTest extends TestCase
         $organization = $this->createOrganization('Existing Invite Org');
         $admin = $this->createMember($organization, 'admin');
         $existing = User::factory()->create([
-            'name' => 'Existing Member',
+            'first_name' => 'Existing',
+            'last_name' => 'Member',
             'email' => 'existing.member@example.com',
         ]);
 
         $response = $this->actingAs($admin)->postJson('/api/v1/team/members', [
-            'name' => 'Name Should Not Replace Existing Verified User',
+            'first_name' => 'Name Should Not',
+            'last_name' => 'Replace Existing Verified User',
             'email' => 'existing.member@example.com',
             'role' => 'viewer',
         ]);
@@ -107,12 +110,14 @@ class TeamOnboardingProfileTest extends TestCase
         $organization = $this->createOrganization('Pending Invite Org');
         $admin = $this->createMember($organization, 'admin');
         $pending = User::factory()->unverified()->create([
-            'name' => 'Pending Existing',
+            'first_name' => 'Pending',
+            'last_name' => 'Existing',
             'email' => 'pending.existing@example.com',
         ]);
 
         $this->actingAs($admin)->postJson('/api/v1/team/members', [
-            'name' => 'Pending Existing Full Name',
+            'first_name' => 'Pending Existing',
+            'last_name' => 'Full Name',
             'email' => 'pending.existing@example.com',
             'role' => 'editor',
         ])->assertOk()
@@ -140,13 +145,15 @@ class TeamOnboardingProfileTest extends TestCase
         $admin = $this->createMember($organization, 'admin');
 
         $this->actingAs($admin)->postJson('/api/v1/team/members', [
-            'name' => 'Pending Member',
+            'first_name' => 'Pending',
+            'last_name' => 'Member',
             'email' => 'pending.member@example.com',
             'role' => 'viewer',
         ])->assertCreated();
 
         $this->postJson('/api/v1/register', [
-            'name' => 'Pending Member Updated',
+            'first_name' => 'Pending Member',
+            'last_name' => 'Updated',
             'email' => 'pending.member@example.com',
             'password' => 'Password1!',
             'password_confirmation' => 'Password1!',
@@ -179,7 +186,8 @@ class TeamOnboardingProfileTest extends TestCase
         $user = $this->createMember($organization, 'viewer');
 
         $response = $this->actingAs($user)->patchJson('/api/v1/profile', [
-            'name' => 'Updated Name',
+            'first_name' => 'Updated',
+            'last_name' => 'Name',
         ]);
 
         $response->assertOk()
@@ -195,7 +203,8 @@ class TeamOnboardingProfileTest extends TestCase
         $user = $this->createMember($organization, 'viewer');
 
         $response = $this->actingAs($user)->patchJson('/api/v1/profile', [
-            'name' => $user->name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'current_password' => 'password',
             'password' => 'NewPassword1!',
             'password_confirmation' => 'NewPassword1!',
@@ -213,7 +222,8 @@ class TeamOnboardingProfileTest extends TestCase
         $user = $this->createMember($organization, 'viewer');
 
         $this->actingAs($user)->patchJson('/api/v1/profile', [
-            'name' => $user->name,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'current_password' => 'wrong-password',
             'password' => 'NewPassword1!',
             'password_confirmation' => 'NewPassword1!',

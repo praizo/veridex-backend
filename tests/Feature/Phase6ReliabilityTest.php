@@ -53,7 +53,7 @@ class Phase6ReliabilityTest extends TestCase
 
         $this->customer = Customer::create([
             'organization_id' => $this->organization->id,
-            'name' => 'Test Customer',
+            'first_name' => 'Test Customer', 'last_name' => 'Last',
             'type' => 'individual',
             'tin' => '87654321-0001',
             'email' => 'cust@test.com',
