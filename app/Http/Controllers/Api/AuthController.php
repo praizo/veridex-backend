@@ -63,7 +63,8 @@ class AuthController extends Controller
         $user = User::updateOrCreate(
             ['email' => $validated['email']],
             [
-                'name' => $validated['name'],
+                'first_name' => $validated['first_name'],
+                'last_name' => $validated['last_name'],
                 'password' => Hash::make($validated['password']),
                 'email_verified_at' => null,
             ]

@@ -15,7 +15,8 @@ class UpdateProfileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'current_password' => ['nullable', 'required_with:password', 'string'],
             'password' => ['nullable', 'string', PasswordRule::min(8)->letters()->mixedCase()->numbers()->symbols(), 'confirmed'],
         ];

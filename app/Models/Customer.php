@@ -23,7 +23,8 @@ class Customer extends Model
 
     protected $fillable = [
         'organization_id',
-        'name',
+        'first_name',
+        'last_name',
         'type',
         'tin',
         'email',
@@ -33,6 +34,13 @@ class Customer extends Model
         'postal_zone',
         'country_code',
     ];
+
+    protected $appends = ['name'];
+
+    public function getNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->last_name}");
+    }
 
     public function organization(): BelongsTo
     {

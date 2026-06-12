@@ -36,7 +36,8 @@ class ProfileController extends Controller
             $user->tokens()->delete();
         }
 
-        $user->name = $validated['name'];
+        $user->first_name = $validated['first_name'];
+        $user->last_name = $validated['last_name'];
         $user->save();
 
         return response()->json([

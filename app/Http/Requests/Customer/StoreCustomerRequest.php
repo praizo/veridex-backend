@@ -14,7 +14,8 @@ class StoreCustomerRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'name' => ['required', 'string', 'max:255'],
+            'first_name' => ['required', 'string', 'max:255'],
+            'last_name' => ['required', 'string', 'max:255'],
             'type' => ['nullable', 'in:business,individual,government'],
             'tin' => ['required', 'string', 'max:50'],
             'email' => ['required', 'email', 'max:255'],
@@ -34,7 +35,8 @@ class StoreCustomerRequest extends FormRequest
         $v = $this->validated();
 
         return [
-            'name' => $v['name'],
+            'first_name' => $v['first_name'],
+            'last_name' => $v['last_name'],
             'type' => $v['type'] ?? 'business',
             'tin' => $v['tin'],
             'email' => $v['email'],
