@@ -46,7 +46,7 @@ class ReportService
             ->get()
             ->map(function ($row) {
                 return [
-                    'customer_name' => trim($row->first_name . ' ' . $row->last_name),
+                    'customer_name' => trim($row->first_name.' '.$row->last_name),
                     'customer_type' => $row->customer_type,
                     'total_count' => $row->total_count,
                     'total_amount' => $row->total_amount,
