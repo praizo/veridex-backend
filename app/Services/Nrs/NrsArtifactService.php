@@ -305,11 +305,11 @@ class NrsArtifactService
         if ($payload) {
             if ($this->isInvoiceMetadataPayload($payload)) {
                 throw new NrsApiException(
-                'NRS encrypted invoice artifact decrypted to invoice metadata, not a downloadable invoice artifact for this IRN.',
+                    'NRS encrypted invoice artifact decrypted to invoice metadata, not a downloadable invoice artifact for this IRN.',
                     502,
                     [
                         'envelope' => 'encrypted',
-                    'decryption' => 'succeeded',
+                        'decryption' => 'succeeded',
                         'response_kind' => 'invoice_metadata',
                         'irn' => $payload['irn'] ?? null,
                         'business_id' => $payload['business_id'] ?? null,
