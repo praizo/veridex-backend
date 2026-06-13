@@ -71,6 +71,7 @@ class StoreInvoiceRequest extends FormRequest
             // Lines
             'lines' => ['required', 'array', 'min:1'],
             'lines.*.line_id' => ['required', 'string'],
+            'lines.*.item_type' => ['nullable', 'string', 'in:goods,service'],
             'lines.*.invoiced_quantity' => ['required', 'integer', 'min:1'],
             'lines.*.line_extension_amount' => ['required', 'numeric', 'min:0'],
             'lines.*.item_name' => ['required', 'string'],
@@ -83,8 +84,10 @@ class StoreInvoiceRequest extends FormRequest
             'lines.*.tax_category_id' => ['nullable', 'string'],
             'lines.*.tax_percent' => ['nullable', 'numeric', 'min:0'],
             'lines.*.tax_scheme_id' => ['nullable', 'string'],
-            'lines.*.hsn_code' => ['required', 'string'],
-            'lines.*.product_category' => ['required', 'string'],
+            'lines.*.hsn_code' => ['nullable', 'string'],
+            'lines.*.product_category' => ['nullable', 'string'],
+            'lines.*.isic_code' => ['nullable', 'string'],
+            'lines.*.service_category' => ['nullable', 'string'],
 
             // Tax Totals
             'tax_totals' => ['nullable', 'array'],
@@ -96,5 +99,34 @@ class StoreInvoiceRequest extends FormRequest
 
             // (Skipping detailed rules for allowanceCharges, paymentMeans, docReferences for brevity in Phase 1)
         ];
+    }
+
+    public function withValidator($validator): void
+    {
+        $validator->after(function ($validator) {
+            foreach ($this->input('lines', []) as $index => $line) {
+                $itemType = $line['item_type'] ?? 'goods';
+
+                if ($itemType === 'goods') {
+                    if (empty($line['hsn_code'])) {
+                        $validator->errors()->add("lines.{$index}.hsn_code", 'HSN code is required for goods.');
+                    }
+
+                    if (empty($line['product_category'])) {
+                        $validator->errors()->add("lines.{$index}.product_category", 'Product category is required for goods.');
+                    }
+                }
+
+                if ($itemType === 'service') {
+                    if (empty($line['isic_code'])) {
+                        $validator->errors()->add("lines.{$index}.isic_code", 'ISIC code is required for services.');
+                    }
+
+                    if (empty($line['service_category'])) {
+                        $validator->errors()->add("lines.{$index}.service_category", 'Service category is required for services.');
+                    }
+                }
+            }
+        });
     }
 }

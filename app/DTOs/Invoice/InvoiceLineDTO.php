@@ -6,6 +6,7 @@ final readonly class InvoiceLineDTO
 {
     public function __construct(
         public string $line_id,
+        public string $item_type,
         public float $invoiced_quantity,
         public float $line_extension_amount,
         public string $item_name,
@@ -16,6 +17,8 @@ final readonly class InvoiceLineDTO
         public ?string $item_description = null,
         public ?string $hs_code = null,
         public ?string $item_category = null,
+        public ?string $isic_code = null,
+        public ?string $service_category = null,
         public ?string $item_standard_id = null,
         public float $price_base_quantity = 1.0,
         public string $tax_scheme_id = 'VAT',

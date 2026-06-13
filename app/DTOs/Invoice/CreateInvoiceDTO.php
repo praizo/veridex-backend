@@ -58,20 +58,27 @@ final readonly class CreateInvoiceDTO
             'payable_rounding_amount' => 0,
         ], $validated['legal_monetary_total'] ?? []));
 
-        $lines = array_map(fn ($line) => new InvoiceLineDTO(
-            line_id: (string) ($line['line_id'] ?? 1),
-            invoiced_quantity: (float) ($line['invoiced_quantity'] ?? 1),
-            line_extension_amount: (float) (($line['invoiced_quantity'] ?? 1) * ($line['price_amount'] ?? 0)),
-            item_name: (string) ($line['item_name'] ?? 'Item'),
-            price_amount: (float) ($line['price_amount'] ?? 0),
-            tax_category_id: (string) ($line['tax_category_id'] ?? 'STANDARD_VAT'),
-            tax_percent: (float) ($line['tax_percent'] ?? 7.5),
-            unit_code: (string) ($line['unit_code'] ?? $line['price_unit'] ?? 'EA'),
-            item_description: (string) ($line['item_description'] ?? null),
-            hs_code: (string) ($line['hsn_code'] ?? null),
-            item_category: (string) ($line['product_category'] ?? null),
-            price_base_quantity: (float) ($line['base_quantity'] ?? 1),
-        ), $validated['lines']);
+        $lines = array_map(function ($line) {
+            $itemType = (string) ($line['item_type'] ?? 'goods');
+
+            return new InvoiceLineDTO(
+                line_id: (string) ($line['line_id'] ?? 1),
+                item_type: $itemType,
+                invoiced_quantity: (float) ($line['invoiced_quantity'] ?? 1),
+                line_extension_amount: (float) (($line['invoiced_quantity'] ?? 1) * ($line['price_amount'] ?? 0)),
+                item_name: (string) ($line['item_name'] ?? 'Item'),
+                price_amount: (float) ($line['price_amount'] ?? 0),
+                tax_category_id: (string) ($line['tax_category_id'] ?? 'STANDARD_VAT'),
+                tax_percent: (float) ($line['tax_percent'] ?? 7.5),
+                unit_code: (string) ($line['unit_code'] ?? $line['price_unit'] ?? 'EA'),
+                item_description: (string) ($line['item_description'] ?? null),
+                hs_code: $itemType === 'goods' ? (string) ($line['hsn_code'] ?? null) : null,
+                item_category: $itemType === 'goods' ? (string) ($line['product_category'] ?? null) : null,
+                isic_code: $itemType === 'service' ? (string) ($line['isic_code'] ?? null) : null,
+                service_category: $itemType === 'service' ? (string) ($line['service_category'] ?? null) : null,
+                price_base_quantity: (float) ($line['base_quantity'] ?? 1),
+            );
+        }, $validated['lines']);
 
         $tax_totals = array_map(fn ($tax) => new TaxTotalDTO(
             tax_amount: (float) ($tax['tax_amount'] ?? 0),

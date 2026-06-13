@@ -147,6 +147,44 @@ class ProductInvoiceStabilizationTest extends TestCase
         ]);
     }
 
+    public function test_service_catalog_values_are_accepted_by_invoice_line_creation(): void
+    {
+        $productResponse = $this->actingAs($this->user)
+            ->postJson('/api/v1/products', $this->productPayload([
+                'item_type' => 'service',
+                'name' => 'Rice Growing Advisory',
+                'description' => 'Agricultural advisory service',
+                'hsn_code' => null,
+                'item_category' => null,
+                'isic_code' => '0112',
+                'service_category' => 'Growing of rice',
+            ]));
+
+        $productResponse->assertStatus(201)
+            ->assertJsonPath('data.item_type', 'service')
+            ->assertJsonPath('data.isic_code', '0112')
+            ->assertJsonPath('data.service_category', 'Growing of rice')
+            ->assertJsonPath('data.hsn_code', null);
+
+        $product = Product::firstOrFail();
+
+        $this->createInvoiceFromProduct($product)
+            ->assertStatus(201)
+            ->assertJsonPath('data.lines.0.item_type', 'service')
+            ->assertJsonPath('data.lines.0.isic_code', '0112')
+            ->assertJsonPath('data.lines.0.service_category', 'Growing of rice')
+            ->assertJsonPath('data.lines.0.hs_code', null);
+
+        $this->assertDatabaseHas('invoice_lines', [
+            'item_name' => 'Rice Growing Advisory',
+            'item_type' => 'service',
+            'isic_code' => '0112',
+            'service_category' => 'Growing of rice',
+            'hs_code' => null,
+            'item_category' => null,
+        ]);
+    }
+
     public function test_product_and_invoice_quantities_must_be_whole_numbers(): void
     {
         $this->actingAs($this->user)
@@ -167,6 +205,7 @@ class ProductInvoiceStabilizationTest extends TestCase
     {
         return Product::create([
             'organization_id' => $this->organization->id,
+            'item_type' => 'goods',
             'name' => $name,
             'description' => "{$name} description",
             'quantity' => 1,
@@ -191,6 +230,7 @@ class ProductInvoiceStabilizationTest extends TestCase
 
         return Product::create([
             'organization_id' => $organization->id,
+            'item_type' => 'goods',
             'name' => 'Other Product',
             'description' => 'Other tenant product',
             'quantity' => 1,
@@ -207,6 +247,7 @@ class ProductInvoiceStabilizationTest extends TestCase
     {
         return array_merge([
             'name' => 'Consulting Package',
+            'item_type' => 'goods',
             'description' => 'Standard consulting package',
             'quantity' => 1,
             'price' => 1500,
@@ -243,10 +284,13 @@ class ProductInvoiceStabilizationTest extends TestCase
             'lines' => [
                 [
                     'line_id' => '1',
+                    'item_type' => $product->item_type ?? 'goods',
                     'item_name' => $product->name,
                     'item_description' => $product->description,
                     'hsn_code' => $product->hs_code,
                     'product_category' => $product->item_category,
+                    'isic_code' => $product->isic_code,
+                    'service_category' => $product->service_category,
                     'invoiced_quantity' => $quantity,
                     'line_extension_amount' => $lineTotal,
                     'price_amount' => $price,

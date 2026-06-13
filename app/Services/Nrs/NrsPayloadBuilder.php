@@ -36,24 +36,7 @@ class NrsPayloadBuilder
                 'payable_amount' => (float) $invoice->payable_amount,
             ],
 
-            'invoice_line' => $invoice->lines->map(fn ($line) => array_filter([
-                'hsn_code' => $line->hs_code,
-                'product_category' => $line->item_category,
-                'invoiced_quantity' => (float) $line->invoiced_quantity,
-                'line_extension_amount' => (float) $line->line_extension_amount,
-                'item' => [
-                    'name' => $line->item_name,
-                    'description' => $line->item_description,
-                    'sellers_item_identification' => $line->sellers_item_identification,
-                ],
-                'price' => [
-                    'price_amount' => (float) $line->price_amount,
-                    'base_quantity' => (float) ($line->base_quantity ?? 1),
-                    'price_unit' => $line->price_unit ?? 'UNIT',
-                ],
-                'discount_amount' => $line->discount_amount ? (float) $line->discount_amount : null,
-                'fee_amount' => $line->fee_amount ? (float) $line->fee_amount : null,
-            ], fn ($value) => ! is_null($value)))->values()->toArray(),
+            'invoice_line' => $invoice->lines->map(fn ($line) => $this->buildInvoiceLine($line))->values()->toArray(),
         ];
 
         // Allowance Charges (Root level)
@@ -99,6 +82,37 @@ class NrsPayloadBuilder
         }
 
         return array_filter($payload, fn ($value) => ! is_null($value));
+    }
+
+    protected function buildInvoiceLine($line): array
+    {
+        $itemType = $line->item_type ?? 'goods';
+        $classification = $itemType === 'service'
+            ? [
+                'isic_code' => $line->isic_code,
+                'service_category' => $line->service_category,
+            ]
+            : [
+                'hsn_code' => $line->hs_code,
+                'product_category' => $line->item_category,
+            ];
+
+        return array_filter(array_merge($classification, [
+            'invoiced_quantity' => (float) $line->invoiced_quantity,
+            'line_extension_amount' => (float) $line->line_extension_amount,
+            'item' => [
+                'name' => $line->item_name,
+                'description' => $line->item_description,
+                'sellers_item_identification' => $line->sellers_item_identification,
+            ],
+            'price' => [
+                'price_amount' => (float) $line->price_amount,
+                'base_quantity' => (float) ($line->base_quantity ?? 1),
+                'price_unit' => $line->price_unit ?? 'UNIT',
+            ],
+            'discount_amount' => $line->discount_amount ? (float) $line->discount_amount : null,
+            'fee_amount' => $line->fee_amount ? (float) $line->fee_amount : null,
+        ]), fn ($value) => ! is_null($value));
     }
 
     /**

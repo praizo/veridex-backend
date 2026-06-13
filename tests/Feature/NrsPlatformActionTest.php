@@ -103,6 +103,46 @@ class NrsPlatformActionTest extends TestCase
         $this->assertSame('[REDACTED]', $log->request_payload['business_id']);
     }
 
+    public function test_mixed_goods_and_service_invoice_lines_map_to_expected_nrs_classification_fields(): void
+    {
+        Http::fake([
+            'https://nrs.test/api/v1/invoice/validate' => Http::response($this->fixture('invoice-validation-response'), 200),
+        ]);
+
+        $invoice = $this->draftInvoice();
+        $invoice->lines()->create([
+            'line_id' => '2',
+            'item_type' => 'service',
+            'item_name' => 'Rice Growing Advisory',
+            'item_description' => 'Agricultural advisory service',
+            'isic_code' => '0112',
+            'service_category' => 'Growing of rice',
+            'invoiced_quantity' => 1,
+            'unit_code' => 'EA',
+            'price_amount' => 2000,
+            'line_extension_amount' => 2000,
+            'tax_category_id' => 'STANDARD_VAT',
+            'tax_percent' => 7.5,
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson("/api/v1/invoices/{$invoice->uuid}/validate")
+            ->assertOk();
+
+        Http::assertSent(function ($request) {
+            $lines = $request->data()['invoice_line'] ?? [];
+
+            return $request->method() === 'POST'
+                && $request->url() === 'https://nrs.test/api/v1/invoice/validate'
+                && isset($lines[0]['hsn_code'], $lines[0]['product_category'])
+                && ! isset($lines[0]['isic_code'], $lines[0]['service_category'])
+                && isset($lines[1]['isic_code'], $lines[1]['service_category'])
+                && ! isset($lines[1]['hsn_code'], $lines[1]['product_category'])
+                && $lines[1]['isic_code'] === '0112'
+                && $lines[1]['service_category'] === 'Growing of rice';
+        });
+    }
+
     public function test_sign_invoice_auto_transmits_and_maps_responses(): void
     {
         Http::fake([
@@ -281,6 +321,7 @@ class NrsPlatformActionTest extends TestCase
 
         $invoice->lines()->create([
             'line_id' => '1',
+            'item_type' => 'goods',
             'item_name' => 'Fixture Service',
             'item_description' => 'Fixture service description',
             'hs_code' => '998314',

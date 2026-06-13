@@ -23,9 +23,12 @@ class Product extends Model
 
     protected $fillable = [
         'organization_id',
+        'item_type',
         'name',
         'hs_code',
         'item_category',
+        'isic_code',
+        'service_category',
         'description',
         'quantity',
         'unit_price',
