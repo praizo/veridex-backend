@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\TeamMemberRemoved;
+use App\Events\TeamMemberRoleChanged;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Team\AddMemberRequest;
 use App\Http\Requests\Team\UpdateMemberRoleRequest;
@@ -145,6 +147,17 @@ class TeamController extends Controller
 
         $member->organizations()->updateExistingPivot($currentOrgId, ['role' => $request->role]);
 
+        if ($targetRole !== $request->role) {
+            $organizationName = Organization::findOrFail($currentOrgId)->name;
+            TeamMemberRoleChanged::dispatch(
+                member: $member,
+                organizationName: $organizationName,
+                actorName: $request->user()->name,
+                oldRole: (string) $targetRole,
+                newRole: $request->role,
+            );
+        }
+
         return response()->json([
             'message' => 'Member role updated successfully',
         ]);
@@ -178,7 +191,15 @@ class TeamController extends Controller
             return response()->json(['message' => 'Admins cannot remove the organization owner'], 403);
         }
 
+        $organizationName = Organization::findOrFail($currentOrgId)->name;
         $member->organizations()->detach($currentOrgId);
+
+        TeamMemberRemoved::dispatch(
+            member: $member,
+            organizationName: $organizationName,
+            actorName: $request->user()->name,
+            removedRole: (string) $targetRole,
+        );
 
         return response()->json([
             'message' => 'Member removed successfully',

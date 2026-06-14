@@ -150,6 +150,7 @@ class NrsResourceTest extends TestCase
     public function test_countries_api_mapping_resolves_alpha_2_to_code(): void
     {
         Cache::forget('nrs_countries');
+        Cache::forget('nrs_countries:stale');
 
         Http::fake([
             '*/api/v1/invoice/resources/countries' => Http::response([
@@ -177,5 +178,50 @@ class NrsResourceTest extends TestCase
             ['code' => 'AF', 'name' => 'Afghanistan'],
             ['code' => 'NG', 'name' => 'Nigeria'],
         ], $result);
+    }
+
+    public function test_resource_fetch_caches_successful_responses_as_fresh_and_stale(): void
+    {
+        Cache::forget('nrs_currencies');
+        Cache::forget('nrs_currencies:stale');
+
+        Http::fake([
+            '*/api/v1/invoice/resources/currencies' => Http::response([
+                'data' => [
+                    ['code' => 'NGN', 'name' => 'Naira'],
+                ],
+            ], 200),
+        ]);
+
+        $service = app(NrsResourceService::class);
+        $result = $service->getCurrencies();
+
+        $this->assertEquals([
+            ['code' => 'NGN', 'name' => 'Naira'],
+        ], $result);
+        $this->assertSame($result, Cache::get('nrs_currencies'));
+        $this->assertSame($result, Cache::get('nrs_currencies:stale'));
+    }
+
+    public function test_resource_fetch_returns_stale_cache_when_nrs_fails(): void
+    {
+        Cache::forget('nrs_currencies');
+        Cache::put('nrs_currencies:stale', [
+            ['code' => 'NGN', 'name' => 'Naira'],
+        ], now()->addDays(30));
+
+        Http::fake([
+            '*/api/v1/invoice/resources/currencies' => Http::response([
+                'message' => 'NRS unavailable',
+            ], 503),
+        ]);
+
+        $service = app(NrsResourceService::class);
+        $result = $service->getCurrencies();
+
+        $this->assertEquals([
+            ['code' => 'NGN', 'name' => 'Naira'],
+        ], $result);
+        $this->assertNull(Cache::get('nrs_currencies'));
     }
 }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Api;
 
+use App\Events\AccountSecurityAlertRequested;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Auth\ForgotPasswordRequest;
 use App\Http\Requests\Auth\LoginRequest;
@@ -15,6 +16,7 @@ use App\Services\OtpService;
 use App\Traits\HasUserPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\RateLimiter;
@@ -90,6 +92,11 @@ class AuthController extends Controller
         $throttleKey = $this->loginThrottleKey($request);
 
         if (RateLimiter::tooManyAttempts($throttleKey, 5)) {
+            $lockedUser = User::where('email', $request->input('email'))->first();
+            if ($lockedUser) {
+                $this->dispatchLoginLockoutAlert($lockedUser, $request, RateLimiter::availableIn($throttleKey));
+            }
+
             return response()->json([
                 'message' => 'Too many failed login attempts. Please try again later.',
                 'retry_after' => RateLimiter::availableIn($throttleKey),
@@ -103,6 +110,10 @@ class AuthController extends Controller
             $this->metrics->increment('auth_failure_spikes', 20, [
                 'ip' => $request->ip(),
             ]);
+
+            if ($user && RateLimiter::tooManyAttempts($throttleKey, 5)) {
+                $this->dispatchLoginLockoutAlert($user, $request, RateLimiter::availableIn($throttleKey));
+            }
 
             throw ValidationException::withMessages([
                 'email' => ['Invalid credentials.'],
@@ -158,6 +169,8 @@ class AuthController extends Controller
         if ($request->hasSession()) {
             $request->session()->regenerate();
         }
+
+        $this->dispatchNewSignInContextAlert($user, $request);
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -223,6 +236,7 @@ class AuthController extends Controller
                 ])->save();
 
                 $user->tokens()->delete();
+                $this->dispatchPasswordChangedAlert($user);
             }
         );
 
@@ -260,5 +274,79 @@ class AuthController extends Controller
     private function loginThrottleKey(Request $request): string
     {
         return 'login:'.Str::lower((string) $request->input('email')).'|'.$request->ip();
+    }
+
+    private function frontendUrl(string $path = ''): string
+    {
+        $frontendUrl = rtrim((string) config('app.frontend_url', env('FRONTEND_URL', config('app.url'))), '/');
+
+        return $path === '' ? $frontendUrl : $frontendUrl.'/'.ltrim($path, '/');
+    }
+
+    private function dispatchPasswordChangedAlert(User $user): void
+    {
+        AccountSecurityAlertRequested::dispatch(
+            user: $user,
+            subject: 'Your Veridex password was changed',
+            heading: 'Password changed successfully',
+            message: 'Your Veridex account password was changed successfully.',
+            details: [
+                'Date' => now()->format('M j, Y g:i A'),
+            ],
+            actionText: 'Open Veridex',
+            actionUrl: $this->frontendUrl('/login'),
+            footer: 'If you did not make this change, reset your password immediately and contact support.',
+        );
+    }
+
+    private function dispatchLoginLockoutAlert(User $user, Request $request, int $retryAfter): void
+    {
+        $key = 'security-alert:login-lockout:'.$user->id.':'.hash('sha256', strtolower($user->email)).':'.$request->ip();
+        if (! Cache::add($key, now()->toISOString(), 900)) {
+            return;
+        }
+
+        AccountSecurityAlertRequested::dispatch(
+            user: $user,
+            subject: 'Too many failed Veridex login attempts',
+            heading: 'Login attempts temporarily blocked',
+            message: 'We temporarily blocked sign-in attempts for your Veridex account after repeated failed login attempts.',
+            details: [
+                'IP address' => (string) $request->ip(),
+                'Retry after' => ceil($retryAfter / 60).' minutes',
+                'Date' => now()->format('M j, Y g:i A'),
+            ],
+            actionText: 'Reset Password',
+            actionUrl: $this->frontendUrl('/forgot-password'),
+            footer: 'If this was not you, reset your password and review your account access.',
+        );
+    }
+
+    private function dispatchNewSignInContextAlert(User $user, Request $request): void
+    {
+        $fingerprint = hash('sha256', implode('|', [
+            strtolower((string) $request->userAgent()),
+            (string) $request->ip(),
+        ]));
+        $key = "known-login-context:{$user->id}:{$fingerprint}";
+
+        if (! Cache::add($key, now()->toISOString(), now()->addYear())) {
+            return;
+        }
+
+        AccountSecurityAlertRequested::dispatch(
+            user: $user,
+            subject: 'New Veridex sign-in',
+            heading: 'New sign-in detected',
+            message: 'Your Veridex account was accessed from a sign-in context we have not seen before.',
+            details: [
+                'IP address' => (string) $request->ip(),
+                'Browser' => mb_substr((string) $request->userAgent(), 0, 120),
+                'Date' => now()->format('M j, Y g:i A'),
+            ],
+            actionText: 'Open Veridex',
+            actionUrl: $this->frontendUrl('/dashboard'),
+            footer: 'If this was you, no action is needed. If this was not you, reset your password immediately.',
+        );
     }
 }

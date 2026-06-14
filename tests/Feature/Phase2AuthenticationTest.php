@@ -5,11 +5,13 @@ namespace Tests\Feature;
 use App\Events\OtpRequested;
 use App\Models\OtpCode;
 use App\Models\User;
+use App\Notifications\VeridexAlertNotification;
 use App\Services\OtpService;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -180,6 +182,31 @@ class Phase2AuthenticationTest extends TestCase
         ])->assertStatus(429);
     }
 
+    public function test_login_lockout_sends_security_notification(): void
+    {
+        Cache::flush();
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'lockout-alert@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        for ($i = 0; $i < 5; $i++) {
+            $this->postJson('/api/v1/login', [
+                'email' => 'lockout-alert@example.com',
+                'password' => 'WrongPass1!',
+            ])->assertStatus(422);
+        }
+
+        $this->postJson('/api/v1/login', [
+            'email' => 'lockout-alert@example.com',
+            'password' => 'WrongPass1!',
+        ])->assertStatus(429);
+
+        Notification::assertSentTo($user, VeridexAlertNotification::class);
+    }
+
     public function test_login_otp_challenge_clears_existing_authenticated_session(): void
     {
         Event::fake();
@@ -206,6 +233,36 @@ class Phase2AuthenticationTest extends TestCase
 
         $this->assertGuest('web');
         $this->assertFalse(session()->has($sessionKey));
+    }
+
+    public function test_successful_login_from_new_context_sends_security_notification(): void
+    {
+        Notification::fake();
+
+        $user = User::factory()->create([
+            'email' => 'new-context@example.com',
+            'password' => Hash::make('StrongPass1!'),
+        ]);
+
+        $this->withHeader('User-Agent', 'Feature Test Browser/1.0')
+            ->postJson('/api/v1/login', [
+                'email' => $user->email,
+                'password' => 'StrongPass1!',
+            ])->assertOk()
+            ->assertJson(['requires_otp' => true]);
+
+        $otp = OtpCode::where('email', $user->email)
+            ->where('type', 'login')
+            ->firstOrFail();
+
+        $this->withHeader('User-Agent', 'Feature Test Browser/1.0')
+            ->postJson('/api/v1/verify-otp', [
+                'email' => $user->email,
+                'code' => $otp->code,
+                'type' => 'login',
+            ])->assertOk();
+
+        Notification::assertSentTo($user, VeridexAlertNotification::class);
     }
 
     public function test_registration_otp_challenge_clears_existing_authenticated_session(): void

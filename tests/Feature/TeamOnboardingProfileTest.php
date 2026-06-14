@@ -6,6 +6,7 @@ use App\Models\Organization;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Notifications\TeamInvitationNotification;
+use App\Notifications\VeridexAlertNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
@@ -199,6 +200,8 @@ class TeamOnboardingProfileTest extends TestCase
 
     public function test_user_can_change_password_from_profile_with_current_password(): void
     {
+        Notification::fake();
+
         $organization = $this->createOrganization('Password Org');
         $user = $this->createMember($organization, 'viewer');
 
@@ -214,6 +217,7 @@ class TeamOnboardingProfileTest extends TestCase
             ->assertJsonPath('message', 'Profile and password updated successfully.');
 
         $this->assertTrue(Hash::check('NewPassword1!', $user->fresh()->password));
+        Notification::assertSentTo($user, VeridexAlertNotification::class);
     }
 
     public function test_profile_password_change_requires_current_password(): void

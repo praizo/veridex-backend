@@ -11,6 +11,10 @@ use Illuminate\Support\Facades\Log;
  */
 class NrsResourceService
 {
+    private const FRESH_TTL_SECONDS = 86400;
+
+    private const STALE_TTL_DAYS = 30;
+
     public function __construct(
         protected NrsClient $nrsClient
     ) {}
@@ -107,27 +111,64 @@ class NrsResourceService
      */
     protected function fetch(string $endpoint, string $cacheKey): array
     {
-        return Cache::remember($cacheKey, 86400, function () use ($endpoint) {
-            try {
-                $response = $this->nrsClient->get($endpoint);
-                $body = $response->json();
+        $staleKey = $this->staleCacheKey($cacheKey);
+        $fresh = Cache::get($cacheKey);
 
-                // Sandbox structures can be nested: {"data": [...]} OR {"data": {"data": [...]}}
-                $result = $body;
-                if (isset($body['data']) && is_array($body['data'])) {
-                    $result = $body['data'];
-                }
+        if (is_array($fresh) && $fresh !== []) {
+            Cache::put($staleKey, $fresh, now()->addDays(self::STALE_TTL_DAYS));
 
-                if (isset($result['data']) && is_array($result['data'])) {
-                    $result = $result['data'];
-                }
+            return $fresh;
+        }
 
-                return is_array($result) ? $result : [];
-            } catch (\Exception $e) {
-                Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: ".$e->getMessage());
+        if ($fresh === []) {
+            Cache::forget($cacheKey);
+        }
 
-                return [];
+        try {
+            $response = $this->nrsClient->get($endpoint);
+            $result = $this->extractResourceData($response->json());
+
+            if ($result === []) {
+                Log::warning("NRS Dynamic Resource Fetch Returned Empty [$endpoint]");
+
+                return $this->staleResource($staleKey);
             }
-        });
+
+            Cache::put($cacheKey, $result, self::FRESH_TTL_SECONDS);
+            Cache::put($staleKey, $result, now()->addDays(self::STALE_TTL_DAYS));
+
+            return $result;
+        } catch (\Throwable $e) {
+            Log::warning("NRS Dynamic Resource Fetch Failed [$endpoint]: ".$e->getMessage());
+
+            return $this->staleResource($staleKey);
+        }
+    }
+
+    protected function extractResourceData(array $body): array
+    {
+        // Sandbox structures can be nested: {"data": [...]} OR {"data": {"data": [...]}}
+        $result = $body;
+        if (isset($body['data']) && is_array($body['data'])) {
+            $result = $body['data'];
+        }
+
+        if (isset($result['data']) && is_array($result['data'])) {
+            $result = $result['data'];
+        }
+
+        return is_array($result) ? $result : [];
+    }
+
+    protected function staleResource(string $staleKey): array
+    {
+        $stale = Cache::get($staleKey);
+
+        return is_array($stale) ? $stale : [];
+    }
+
+    protected function staleCacheKey(string $cacheKey): string
+    {
+        return "{$cacheKey}:stale";
     }
 }

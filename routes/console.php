@@ -12,3 +12,4 @@ Schedule::command('invoices:recover-stuck')->everyFifteenMinutes()->withoutOverl
 Schedule::command('audit:prune')->daily()->withoutOverlapping();
 Schedule::command('ops:queue-health')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('invoices:mark-overdue')->hourly()->withoutOverlapping();
+Schedule::command('telescope:prune --hours=24')->daily();

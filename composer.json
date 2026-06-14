@@ -3,12 +3,16 @@
     "name": "laravel/laravel",
     "type": "project",
     "description": "The skeleton application for the Laravel framework.",
-    "keywords": ["laravel", "framework"],
+    "keywords": [
+        "laravel",
+        "framework"
+    ],
     "license": "MIT",
     "require": {
         "php": "^8.5",
         "barryvdh/laravel-dompdf": "^3.1",
         "laravel/framework": "^13.0",
+        "laravel/pulse": "*",
         "laravel/sanctum": "^4.0",
         "laravel/tinker": "^3.0",
         "simplesoftwareio/simple-qrcode": "^4.2"
@@ -17,6 +21,7 @@
         "fakerphp/faker": "^1.23",
         "laravel/pail": "^1.2.5",
         "laravel/pint": "^1.27",
+        "laravel/telescope": "^5.20",
         "mockery/mockery": "^1.6",
         "nunomaduro/collision": "^8.6",
         "phpunit/phpunit": "^12.5.12"
@@ -71,7 +76,9 @@
     },
     "extra": {
         "laravel": {
-            "dont-discover": []
+            "dont-discover": [
+                "laravel/telescope"
+            ]
         }
     },
     "config": {

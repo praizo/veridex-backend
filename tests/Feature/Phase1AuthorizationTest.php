@@ -6,7 +6,9 @@ use App\Models\Customer;
 use App\Models\Organization;
 use App\Models\Product;
 use App\Models\User;
+use App\Notifications\VeridexAlertNotification;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Tests\TestCase;
 
@@ -96,6 +98,38 @@ class Phase1AuthorizationTest extends TestCase
             'user_id' => $owner->id,
             'role' => 'owner',
         ]);
+    }
+
+    public function test_team_member_receives_role_change_notification(): void
+    {
+        Notification::fake();
+
+        $organization = $this->createOrganization('Role Alert Org');
+        $admin = $this->createMember($organization, 'admin');
+        $target = $this->createMember($organization, 'viewer');
+
+        $this->actingAs($admin)
+            ->putJson("/api/v1/team/members/{$target->uuid}", [
+                'role' => 'editor',
+            ])
+            ->assertOk();
+
+        Notification::assertSentTo($target, VeridexAlertNotification::class);
+    }
+
+    public function test_team_member_receives_removal_notification(): void
+    {
+        Notification::fake();
+
+        $organization = $this->createOrganization('Removal Alert Org');
+        $admin = $this->createMember($organization, 'admin');
+        $target = $this->createMember($organization, 'viewer');
+
+        $this->actingAs($admin)
+            ->deleteJson("/api/v1/team/members/{$target->uuid}")
+            ->assertOk();
+
+        Notification::assertSentTo($target, VeridexAlertNotification::class);
     }
 
     public function test_user_cannot_view_another_organization_product(): void

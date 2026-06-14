@@ -3,9 +3,15 @@
 namespace App\Providers;
 
 use App\Events\OtpRequested;
+use App\Events\AccountSecurityAlertRequested;
 use App\Events\TeamMemberAdded;
+use App\Events\TeamMemberRemoved;
+use App\Events\TeamMemberRoleChanged;
+use App\Listeners\SendAccountSecurityAlert;
 use App\Listeners\SendOtpEmail;
+use App\Listeners\SendTeamMemberRemovedEmail;
 use App\Listeners\SendTeamInvitationEmail;
+use App\Listeners\SendTeamRoleChangedEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -19,7 +25,10 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        if ($this->app->environment('local') && class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
+            $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
+            $this->app->register(TelescopeServiceProvider::class);
+        }
     }
 
     /**
@@ -34,7 +43,12 @@ class AppServiceProvider extends ServiceProvider
         // OTP email dispatch (async via queued listener)
         Event::listen(OtpRequested::class, SendOtpEmail::class);
 
+        // Account security alerts (async via queued listener)
+        Event::listen(AccountSecurityAlertRequested::class, SendAccountSecurityAlert::class);
+
         // Team invitation email dispatch (async via queued listener)
         Event::listen(TeamMemberAdded::class, SendTeamInvitationEmail::class);
+        Event::listen(TeamMemberRoleChanged::class, SendTeamRoleChangedEmail::class);
+        Event::listen(TeamMemberRemoved::class, SendTeamMemberRemovedEmail::class);
     }
 }
