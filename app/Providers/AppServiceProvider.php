@@ -2,15 +2,15 @@
 
 namespace App\Providers;
 
-use App\Events\OtpRequested;
 use App\Events\AccountSecurityAlertRequested;
+use App\Events\OtpRequested;
 use App\Events\TeamMemberAdded;
 use App\Events\TeamMemberRemoved;
 use App\Events\TeamMemberRoleChanged;
 use App\Listeners\SendAccountSecurityAlert;
 use App\Listeners\SendOtpEmail;
-use App\Listeners\SendTeamMemberRemovedEmail;
 use App\Listeners\SendTeamInvitationEmail;
+use App\Listeners\SendTeamMemberRemovedEmail;
 use App\Listeners\SendTeamRoleChangedEmail;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
