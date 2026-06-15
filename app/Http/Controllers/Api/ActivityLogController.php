@@ -26,7 +26,7 @@ class ActivityLogController extends Controller
         }
 
         $logs = ActivityLog::where('organization_id', $request->user()->current_organization_id)
-            ->with('user:id,name,email')
+            ->with('user:id,first_name,last_name,email')
             ->latest()
             ->paginate($request->query('per_page', 15));
 

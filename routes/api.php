@@ -103,6 +103,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/nrs/health-check', [InvoiceController::class, 'selfHealthCheck']);
 
             // Customers
+            Route::get('customers/export/csv', [CustomerController::class, 'exportCsv']);
             Route::apiResource('customers', CustomerController::class);
 
             // Products

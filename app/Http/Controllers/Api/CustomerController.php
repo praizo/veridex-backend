@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Services\CustomerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class CustomerController extends Controller
 {
@@ -24,6 +25,62 @@ class CustomerController extends Controller
             ->paginate($request->query('per_page', 15));
 
         return response()->json(CustomerResource::collection($customers)->response()->getData(true));
+    }
+
+    public function exportCsv(Request $request): StreamedResponse
+    {
+        $orgId = $request->user()->current_organization_id;
+
+        $response = new StreamedResponse(function () use ($orgId) {
+            $handle = fopen('php://output', 'w');
+
+            fputcsv($handle, [
+                'ID',
+                'First Name',
+                'Last Name',
+                'Name',
+                'Type',
+                'TIN',
+                'Email',
+                'Phone',
+                'Address',
+                'City',
+                'Postal Zone',
+                'Country Code',
+                'Created At',
+            ]);
+
+            Customer::where('organization_id', $orgId)
+                ->latest()
+                ->chunk(100, function ($customers) use ($handle) {
+                    foreach ($customers as $customer) {
+                        fputcsv($handle, [
+                            $customer->uuid,
+                            $customer->first_name ? ucwords($customer->first_name) : '',
+                            $customer->last_name ? ucwords($customer->last_name) : '',
+                            $customer->name ? ucwords($customer->name) : '',
+                            $customer->type ? ucfirst($customer->type) : '',
+                            $customer->tin,
+                            $customer->email,
+                            $customer->telephone,
+                            $customer->street_name,
+                            $customer->city_name,
+                            $customer->postal_zone,
+                            $customer->country_code,
+                            $customer->created_at ? $customer->created_at->format('Y-m-d H:i:s') : '',
+                        ]);
+                    }
+                });
+
+            fclose($handle);
+        });
+
+        $date = now()->format('Y_m_d_His');
+
+        $response->headers->set('Content-Type', 'text/csv');
+        $response->headers->set('Content-Disposition', 'attachment; filename="customers_export_'.$date.'.csv"');
+
+        return $response;
     }
 
     public function store(StoreCustomerRequest $request): JsonResponse

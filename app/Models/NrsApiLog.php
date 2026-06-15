@@ -7,7 +7,17 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class NrsApiLog extends Model
 {
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'organization_id',
+        'irn',
+        'endpoint',
+        'method',
+        'request_payload',
+        'response_body',
+        'status_code',
+        'latency_ms',
+        'ip_address',
+    ];
 
     protected $casts = [
         'request_payload' => 'array',
