@@ -56,6 +56,7 @@ class NrsArtifactService
             [],
             ['Accept' => 'application/json'],
             [
+                'organization_id' => $invoice->organization_id,
                 'invoice_id' => $invoice->id,
                 'invoice_uuid' => $invoice->uuid,
                 'irn' => $invoice->irn,
@@ -114,6 +115,7 @@ class NrsArtifactService
                 [],
                 ['Accept' => 'application/json'],
                 [
+                    'organization_id' => $invoice->organization_id,
                     'invoice_id' => $invoice->id,
                     'invoice_uuid' => $invoice->uuid,
                     'irn' => $invoice->irn,

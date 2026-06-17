@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Invoice;
-use App\Services\InvoiceStateService;
+use App\Services\Invoice\InvoiceStateService;
 use Carbon\Carbon;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;

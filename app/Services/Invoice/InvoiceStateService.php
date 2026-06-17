@@ -1,0 +1,83 @@
+<?php
+
+namespace App\Services\Invoice;
+
+use App\Enums\InvoiceStatus;
+use App\Exceptions\InvoiceStateException;
+use App\Models\Invoice;
+use App\Models\InvoiceStateTransition;
+use App\Models\User;
+use Illuminate\Support\Facades\Log;
+
+class InvoiceStateService
+{
+    public function transition(
+        Invoice $invoice,
+        InvoiceStatus $toStatus,
+        ?User $user,
+        string $trigger,
+        ?string $note = null,
+        ?array $metadata = null,
+        ?string $ipAddress = null
+    ): InvoiceStateTransition {
+        $fromStatus = $invoice->status;
+
+        // Allow same-state transitions (idempotency)
+        if ($fromStatus === $toStatus) {
+            return InvoiceStateTransition::where('invoice_id', $invoice->id)
+                ->where('to_status', $toStatus->value)
+                ->latest()
+                ->first() ?? new InvoiceStateTransition;
+        }
+
+        $this->validateTransition($fromStatus, $toStatus);
+
+        $transition = InvoiceStateTransition::create([
+            'invoice_id' => $invoice->id,
+            'user_id' => $user?->id,
+            'from_status' => $fromStatus->value,
+            'to_status' => $toStatus->value,
+            'trigger' => $trigger,
+            'note' => $note,
+            'metadata' => $metadata,
+            'ip_address' => $ipAddress,
+        ]);
+
+        if ($toStatus === InvoiceStatus::SIGNED) {
+            $invoice->captureImmutableSnapshot();
+        }
+
+        $invoice->update(['status' => $toStatus]);
+
+        $newStatus = $toStatus->value;
+        Log::info("Invoice state transition: [{$invoice->irn}] moved to [{$newStatus}] by [{$trigger}]");
+
+        return $transition;
+    }
+
+    private function validateTransition(InvoiceStatus $from, InvoiceStatus $to): void
+    {
+        // Allow idempotency
+        if ($from === $to) {
+            return;
+        }
+
+        $allowed = [
+            InvoiceStatus::DRAFT->value => [InvoiceStatus::PENDING_VALIDATION, InvoiceStatus::CANCELLED],
+            InvoiceStatus::PENDING_VALIDATION->value => [InvoiceStatus::VALIDATED, InvoiceStatus::VALIDATION_FAILED],
+            InvoiceStatus::VALIDATED->value => [InvoiceStatus::PENDING_SIGNING],
+            InvoiceStatus::VALIDATION_FAILED->value => [InvoiceStatus::DRAFT, InvoiceStatus::PENDING_VALIDATION],
+            InvoiceStatus::PENDING_SIGNING->value => [InvoiceStatus::SIGNED, InvoiceStatus::SIGN_FAILED],
+            InvoiceStatus::SIGNED->value => [InvoiceStatus::PENDING_TRANSMIT],
+            InvoiceStatus::SIGN_FAILED->value => [InvoiceStatus::PENDING_SIGNING],
+            InvoiceStatus::PENDING_TRANSMIT->value => [InvoiceStatus::TRANSMITTED, InvoiceStatus::TRANSMIT_FAILED],
+            InvoiceStatus::TRANSMIT_FAILED->value => [InvoiceStatus::PENDING_TRANSMIT],
+        ];
+
+        $allowedTo = $allowed[$from->value] ?? [];
+
+        if (! in_array($to, $allowedTo)) {
+            throw new InvoiceStateException("Cannot transition from '{$from->value}' to '{$to->value}'");
+        }
+    }
+}

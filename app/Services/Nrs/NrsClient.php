@@ -7,7 +7,7 @@ namespace App\Services\Nrs;
 use App\Exceptions\NrsApiException;
 use App\Exceptions\NrsConnectionException;
 use App\Models\NrsApiLog;
-use App\Services\OperationalMetricService;
+use App\Services\Operations\OperationalMetricService;
 use App\Support\NrsRawDebugExporter;
 use App\Support\SensitiveDataRedactor;
 use Exception;
@@ -18,7 +18,6 @@ use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Request;
 
 /**
  * Base Client for NRS Merchant Buyer Solution (MBS) API.
@@ -115,7 +114,7 @@ class NrsClient
             }
 
             // 2. Log API Interaction
-            $this->logInteraction($method, $endpoint, $data, $response, $latency);
+            $this->logInteraction($method, $endpoint, $data, $response, $latency, $debugContext);
 
             if ($response->failed()) {
                 $this->handleFailure();
@@ -161,11 +160,11 @@ class NrsClient
         }
     }
 
-    protected function logInteraction(string $method, string $endpoint, array $data, Response $response, float $latency): void
+    protected function logInteraction(string $method, string $endpoint, array $data, Response $response, float $latency, array $debugContext = []): void
     {
         try {
             NrsApiLog::create([
-                'organization_id' => auth()->check() ? auth()->user()->current_organization_id : null,
+                'organization_id' => $debugContext['organization_id'] ?? null,
                 'irn' => $data['invoice']['irn'] ?? ($data['irn'] ?? null),
                 'endpoint' => $endpoint,
                 'method' => strtoupper($method),
@@ -173,7 +172,7 @@ class NrsClient
                 'response_body' => $this->redactor->redact($this->safeJson($response)),
                 'status_code' => $response->status(),
                 'latency_ms' => $latency,
-                'ip_address' => Request::ip(),
+                'ip_address' => $debugContext['ip_address'] ?? null,
             ]);
         } catch (Exception $e) {
             Log::error('Failed to log NRS API interaction: '.$e->getMessage());

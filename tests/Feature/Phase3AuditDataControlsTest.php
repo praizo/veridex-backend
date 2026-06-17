@@ -6,7 +6,7 @@ use App\Models\ActivityLog;
 use App\Models\NrsApiLog;
 use App\Models\Organization;
 use App\Models\User;
-use App\Services\ActivityLogService;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Nrs\NrsClient;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;

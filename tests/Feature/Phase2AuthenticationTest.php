@@ -6,7 +6,7 @@ use App\Events\OtpRequested;
 use App\Models\OtpCode;
 use App\Models\User;
 use App\Notifications\VeridexAlertNotification;
-use App\Services\OtpService;
+use App\Services\Auth\OtpService;
 use Illuminate\Auth\SessionGuard;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Middleware\ThrottleRequests;

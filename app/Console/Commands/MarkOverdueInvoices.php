@@ -3,7 +3,7 @@
 namespace App\Console\Commands;
 
 use App\Models\Invoice;
-use App\Services\OperationalMetricService;
+use App\Services\Operations\OperationalMetricService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
 

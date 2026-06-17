@@ -21,6 +21,7 @@ trait HasUserPayload
 
         return array_merge($user->toArray(), [
             'current_organization_role' => $role,
+            'platform_role' => $user->platform_role,
         ]);
     }
 }

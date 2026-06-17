@@ -2,7 +2,7 @@
 
 namespace App\Console\Commands;
 
-use App\Services\OperationalMetricService;
+use App\Services\Operations\OperationalMetricService;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;

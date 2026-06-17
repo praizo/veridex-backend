@@ -8,6 +8,7 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
@@ -41,7 +42,7 @@ class User extends Authenticatable
         'onboarding_completed_at',
     ];
 
-    protected $appends = ['name'];
+    protected $appends = ['name', 'platform_role'];
 
     public function getNameAttribute(): string
     {
@@ -69,7 +70,27 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'onboarding_completed_at' => 'datetime',
+            'suspended_at' => 'datetime',
         ];
+    }
+
+    public function isSuperAdmin(): bool
+    {
+        return $this->platformRole() === 'super_admin';
+    }
+
+    public function getPlatformRoleAttribute(): ?string
+    {
+        return $this->platformRole();
+    }
+
+    public function platformRole(): ?string
+    {
+        $admin = $this->relationLoaded('platformAdmin')
+            ? $this->platformAdmin
+            : $this->platformAdmin()->first();
+
+        return $admin?->status === 'active' ? $admin->role : null;
     }
 
     public function hasCompletedOnboarding(): bool
@@ -85,6 +106,11 @@ class User extends Authenticatable
     public function currentOrganization(): BelongsTo
     {
         return $this->belongsTo(Organization::class, 'current_organization_id');
+    }
+
+    public function platformAdmin(): HasOne
+    {
+        return $this->hasOne(PlatformAdmin::class);
     }
 
     public function currentOrganizationId(): ?int

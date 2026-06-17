@@ -9,7 +9,7 @@ use App\Models\NrsApiLog;
 use App\Models\NrsSubmission;
 use App\Models\Organization;
 use App\Models\User;
-use App\Services\InvoiceStateService;
+use App\Services\Invoice\InvoiceStateService;
 use App\Services\Nrs\NrsInvoiceService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Http;

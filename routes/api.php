@@ -1,18 +1,19 @@
 <?php
 
-use App\Http\Controllers\Api\ActivityLogController;
-use App\Http\Controllers\Api\AuthController;
-use App\Http\Controllers\Api\CustomerController;
-use App\Http\Controllers\Api\DashboardController;
-use App\Http\Controllers\Api\InvoiceController;
-use App\Http\Controllers\Api\NrsResourceController;
-use App\Http\Controllers\Api\NrsWebhookController;
-use App\Http\Controllers\Api\OnboardingController;
-use App\Http\Controllers\Api\OrganizationController;
-use App\Http\Controllers\Api\ProductController;
-use App\Http\Controllers\Api\ProfileController;
-use App\Http\Controllers\Api\ReportController;
-use App\Http\Controllers\Api\TeamController;
+use App\Http\Controllers\Api\ActivityLog\ActivityLogController;
+use App\Http\Controllers\Api\Auth\AuthController;
+use App\Http\Controllers\Api\Customer\CustomerController;
+use App\Http\Controllers\Api\Dashboard\DashboardController;
+use App\Http\Controllers\Api\Invoice\InvoiceController;
+use App\Http\Controllers\Api\Nrs\NrsResourceController;
+use App\Http\Controllers\Api\Nrs\NrsWebhookController;
+use App\Http\Controllers\Api\Onboarding\OnboardingController;
+use App\Http\Controllers\Api\Organization\OrganizationController;
+use App\Http\Controllers\Api\Platform\PlatformController;
+use App\Http\Controllers\Api\Product\ProductController;
+use App\Http\Controllers\Api\Profile\ProfileController;
+use App\Http\Controllers\Api\Report\ReportController;
+use App\Http\Controllers\Api\Team\TeamController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -50,6 +51,22 @@ Route::prefix('v1')->group(function () {
 
         // Onboarding
         Route::post('/onboarding/complete', [OnboardingController::class, 'completeOnboarding']);
+
+        Route::prefix('platform')->middleware('can:viewPlatformDashboard')->group(function () {
+            Route::get('/summary', [PlatformController::class, 'summary']);
+            Route::get('/analytics', [PlatformController::class, 'analytics']);
+            Route::get('/organizations', [PlatformController::class, 'organizations']);
+            Route::get('/organizations/{organization}', [PlatformController::class, 'organization']);
+            Route::patch('/organizations/{organization}', [PlatformController::class, 'updateOrganization'])->middleware('can:managePlatformOrganizations');
+            Route::get('/users', [PlatformController::class, 'users']);
+            Route::get('/users/{user}', [PlatformController::class, 'user']);
+            Route::patch('/users/{user}', [PlatformController::class, 'updateUser'])->middleware('can:managePlatformUsers');
+            Route::get('/invoices', [PlatformController::class, 'invoices']);
+            Route::get('/invoices/{invoice}', [PlatformController::class, 'invoice']);
+            Route::patch('/invoices/{invoice}', [PlatformController::class, 'updateInvoice'])->middleware('can:managePlatformInvoices');
+            Route::get('/activity-logs', [PlatformController::class, 'activityLogs'])->middleware('can:viewPlatformActivityLogs');
+            Route::get('/system', [PlatformController::class, 'system']);
+        });
 
         // Organization-Scoped Routes
         Route::middleware('org.scope')->group(function () {
