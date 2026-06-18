@@ -306,18 +306,17 @@ class NrsPlatformActionTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-NRS-001',
-            'status' => 'draft',
             'payment_status' => 'PENDING',
             'invoice_type_code' => '380',
             'invoice_kind' => 'B2B',
             'issue_date' => now(),
             'document_currency_code' => 'NGN',
-            'irn' => 'DRAFT-IRN-FIXTURE',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill(['irn' => 'DRAFT-IRN-FIXTURE'])->save();
 
         $invoice->lines()->create([
             'line_id' => '1',
@@ -362,7 +361,7 @@ class NrsPlatformActionTest extends TestCase
         $stateService->transition($invoice, InvoiceStatus::PENDING_VALIDATION, $this->user, 'fixture validation');
         $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATED, $this->user, 'fixture validation');
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'fixture signing');
-        $invoice->fresh()->update(['irn' => $irn]);
+        $invoice->fresh()->forceFill(['irn' => $irn])->save();
         $stateService->transition($invoice->fresh(), InvoiceStatus::SIGNED, $this->user, 'fixture signing');
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_TRANSMIT, $this->user, 'fixture transmit');
         $stateService->transition($invoice->fresh(), InvoiceStatus::TRANSMITTED, $this->user, 'fixture transmit');

@@ -24,7 +24,7 @@ class TeamOnboardingProfileTest extends TestCase
             'slug' => str($name)->slug()->toString(),
             'tin' => '12345678-0001',
             'email' => str($name)->slug().'@test.com',
-            'nrs_business_id' => (string) Str::uuid(),
+            'nrs_business_id' => (string) Str::uuid7(),
         ]);
     }
 
@@ -196,6 +196,62 @@ class TeamOnboardingProfileTest extends TestCase
             ->assertJsonPath('user.current_organization_role', 'viewer');
 
         $this->assertSame('Updated Name', $user->fresh()->name);
+    }
+
+    public function test_me_returns_minimal_session_payload(): void
+    {
+        $organization = $this->createOrganization('Session Org');
+        $organization->forceFill([
+            'platform_status' => 'suspended',
+            'onboarding_status' => 'review',
+            'admin_notes' => 'Internal review note',
+        ])->save();
+
+        $user = $this->createMember($organization, 'admin');
+
+        $response = $this->actingAs($user)->getJson('/api/v1/me');
+
+        $response->assertOk()
+            ->assertJsonPath('id', $user->uuid)
+            ->assertJsonPath('current_organization.id', $organization->uuid)
+            ->assertJsonPath('current_organization_role', 'admin');
+
+        $payload = $response->json();
+
+        $this->assertArrayNotHasKey('password', $payload);
+        $this->assertArrayNotHasKey('remember_token', $payload);
+        $this->assertArrayNotHasKey('created_at', $payload);
+        $this->assertArrayNotHasKey('platform_status', $payload['current_organization']);
+        $this->assertArrayNotHasKey('onboarding_status', $payload['current_organization']);
+        $this->assertArrayNotHasKey('admin_notes', $payload['current_organization']);
+    }
+
+    public function test_current_organization_response_hides_platform_only_fields(): void
+    {
+        $organization = $this->createOrganization('Current Org');
+        $organization->forceFill([
+            'platform_status' => 'suspended',
+            'onboarding_status' => 'review',
+            'verified_at' => now(),
+            'suspended_at' => now(),
+            'admin_notes' => 'Internal only',
+        ])->save();
+
+        $user = $this->createMember($organization, 'admin');
+
+        $response = $this->actingAs($user)->getJson('/api/v1/organization/current');
+
+        $response->assertOk()
+            ->assertJsonPath('data.id', $organization->uuid)
+            ->assertJsonPath('data.name', 'Current Org');
+
+        $payload = $response->json('data');
+
+        $this->assertArrayNotHasKey('platform_status', $payload);
+        $this->assertArrayNotHasKey('onboarding_status', $payload);
+        $this->assertArrayNotHasKey('verified_at', $payload);
+        $this->assertArrayNotHasKey('suspended_at', $payload);
+        $this->assertArrayNotHasKey('admin_notes', $payload);
     }
 
     public function test_user_can_change_password_from_profile_with_current_password(): void

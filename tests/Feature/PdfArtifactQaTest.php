@@ -124,17 +124,16 @@ class PdfArtifactQaTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-PDF-001',
-            'status' => 'draft',
             'payment_status' => 'PENDING',
             'issue_date' => now(),
             'due_date' => now()->addDays(14),
             'document_currency_code' => 'NGN',
-            'irn' => 'PDF-TEST-IRN',
             'line_extension_amount' => 1000000,
             'tax_exclusive_amount' => 1000000,
             'tax_inclusive_amount' => 1075000,
             'payable_amount' => 1075000,
         ]);
+        $invoice->forceFill(['irn' => 'PDF-TEST-IRN'])->save();
 
         $invoice->lines()->create([
             'line_id' => '1',

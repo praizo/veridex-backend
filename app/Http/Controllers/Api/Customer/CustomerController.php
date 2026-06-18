@@ -20,6 +20,8 @@ class CustomerController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Customer::class);
+
         $customers = Customer::where('organization_id', $request->user()->current_organization_id)
             ->latest()
             ->paginate($request->query('per_page', 15));
@@ -29,6 +31,8 @@ class CustomerController extends Controller
 
     public function exportCsv(Request $request): StreamedResponse
     {
+        $this->authorize('export', Customer::class);
+
         $orgId = $request->user()->current_organization_id;
 
         $response = new StreamedResponse(function () use ($orgId) {
@@ -98,15 +102,13 @@ class CustomerController extends Controller
 
     public function show(Request $request, Customer $customer): CustomerResource
     {
-        $this->authorizeOrganizationAccess($customer, $request);
+        $this->authorize('view', $customer);
 
         return new CustomerResource($customer);
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
-        $this->authorizeOrganizationAccess($customer, $request);
-
         $this->customerService->update($customer, $request->toServiceData());
 
         return response()->json([
@@ -117,19 +119,12 @@ class CustomerController extends Controller
 
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
-        $this->authorizeOrganizationAccess($customer, $request);
+        $this->authorize('delete', $customer);
 
         $customer->delete();
 
         return response()->json([
             'message' => 'Customer deleted successfully.',
         ]);
-    }
-
-    private function authorizeOrganizationAccess(Customer $customer, Request $request): void
-    {
-        if ($customer->organization_id !== $request->user()->current_organization_id) {
-            abort(403, 'Unauthorized access to customer');
-        }
     }
 }

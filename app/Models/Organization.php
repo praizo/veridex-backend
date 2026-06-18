@@ -34,11 +34,6 @@ class Organization extends Model
         'country_code',
         'business_description',
         'service_id',
-        'platform_status',
-        'onboarding_status',
-        'verified_at',
-        'suspended_at',
-        'admin_notes',
     ];
 
     protected $casts = [

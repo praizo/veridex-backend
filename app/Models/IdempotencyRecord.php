@@ -7,7 +7,14 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class IdempotencyRecord extends Model
 {
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'organization_id',
+        'key',
+        'scope',
+        'status_code',
+        'response_payload',
+        'completed_at',
+    ];
 
     protected $casts = [
         'response_payload' => 'array',

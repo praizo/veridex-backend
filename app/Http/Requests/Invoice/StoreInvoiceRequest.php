@@ -3,14 +3,22 @@
 namespace App\Http\Requests\Invoice;
 
 use App\Models\Customer;
+use App\Models\Invoice;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class StoreInvoiceRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true; // We use policies typically, but returning true for now
+        $invoice = $this->route('invoice');
+
+        if ($invoice instanceof Invoice) {
+            return Gate::allows('update', $invoice);
+        }
+
+        return Gate::allows('create', Invoice::class);
     }
 
     protected function prepareForValidation()
@@ -30,7 +38,9 @@ class StoreInvoiceRequest extends FormRequest
     {
         return [
             'customer_id' => [
+                'bail',
                 'required',
+                'integer',
                 Rule::exists('customers', 'id')
                     ->where('organization_id', $this->user()->current_organization_id),
             ],

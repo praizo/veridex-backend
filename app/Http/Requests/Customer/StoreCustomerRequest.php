@@ -2,13 +2,21 @@
 
 namespace App\Http\Requests\Customer;
 
+use App\Models\Customer;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class StoreCustomerRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $customer = $this->route('customer');
+
+        if ($customer instanceof Customer) {
+            return Gate::allows('update', $customer);
+        }
+
+        return Gate::allows('create', Customer::class);
     }
 
     public function rules(): array

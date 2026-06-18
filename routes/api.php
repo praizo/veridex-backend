@@ -90,6 +90,7 @@ Route::prefix('v1')->group(function () {
 
             // FIRS Resources
             Route::prefix('resources')->group(function () {
+                Route::get('/', [NrsResourceController::class, 'index']);
                 Route::get('hs-codes', [NrsResourceController::class, 'hsCodes']);
                 Route::get('currencies', [NrsResourceController::class, 'currencies']);
                 Route::get('tax-categories', [NrsResourceController::class, 'taxCategories']);

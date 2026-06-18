@@ -47,7 +47,7 @@ class InvoiceStateService
             $invoice->captureImmutableSnapshot();
         }
 
-        $invoice->update(['status' => $toStatus]);
+        $invoice->forceFill(['status' => $toStatus])->save();
 
         $newStatus = $toStatus->value;
         Log::info("Invoice state transition: [{$invoice->irn}] moved to [{$newStatus}] by [{$trigger}]");

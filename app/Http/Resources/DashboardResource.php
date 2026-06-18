@@ -14,7 +14,7 @@ class DashboardResource extends JsonResource
     {
         return [
             'stats' => $this['stats'],
-            'recent_activity' => $this['recent_activity'],
+            'recent_activity' => ActivityLogResource::collection($this['recent_activity'])->resolve($request),
         ];
     }
 }

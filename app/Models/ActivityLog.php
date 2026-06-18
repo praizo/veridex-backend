@@ -12,7 +12,17 @@ class ActivityLog extends Model
 {
     use BelongsToOrganization, HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'organization_id',
+        'user_id',
+        'action',
+        'subject_type',
+        'subject_id',
+        'description',
+        'metadata',
+        'ip_address',
+        'user_agent',
+    ];
 
     protected $casts = [
         'metadata' => 'array',

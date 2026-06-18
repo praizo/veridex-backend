@@ -35,6 +35,8 @@ class InvoiceController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Invoice::class);
+
         $invoices = Invoice::where('organization_id', $request->user()->current_organization_id)
             ->with(['customer', 'lines'])
             ->latest()
@@ -79,19 +81,9 @@ class InvoiceController extends Controller
     /**
      * Display the specified invoice.
      */
-    protected function checkInvoiceTenancy(Invoice $invoice): void
-    {
-        if ($invoice->organization_id !== request()->user()->current_organization_id) {
-            abort(403, 'Unauthorized access to invoice');
-        }
-    }
-
-    /**
-     * Display the specified invoice.
-     */
     public function show(Invoice $invoice): InvoiceResource
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('view', $invoice);
 
         return new InvoiceResource($invoice->load([
             'customer',
@@ -109,8 +101,6 @@ class InvoiceController extends Controller
      */
     public function update(StoreInvoiceRequest $request, Invoice $invoice): JsonResponse
     {
-        $this->checkInvoiceTenancy($invoice);
-
         $dto = CreateInvoiceDTO::fromRequest($request);
         $invoice = $this->invoiceService->updateDraftInvoice($invoice, $dto, $request->user());
 
@@ -125,7 +115,7 @@ class InvoiceController extends Controller
      */
     public function validateOnNrs(Request $request, Invoice $invoice): InvoiceResource
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('manageLifecycle', $invoice);
 
         $this->nrsService->validate($invoice, $request->user());
 
@@ -137,7 +127,7 @@ class InvoiceController extends Controller
      */
     public function signOnNrs(Request $request, Invoice $invoice): JsonResponse
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('manageLifecycle', $invoice);
 
         $result = $this->nrsService->sign($invoice, $request->user());
 
@@ -160,7 +150,7 @@ class InvoiceController extends Controller
      */
     public function transmitOnNrs(Request $request, Invoice $invoice): InvoiceResource
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('manageLifecycle', $invoice);
 
         $this->nrsService->transmit($invoice, $request->user());
 
@@ -172,11 +162,25 @@ class InvoiceController extends Controller
      */
     public function confirmOnNrs(Invoice $invoice): InvoiceResource
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('manageLifecycle', $invoice);
 
         $this->nrsService->confirm($invoice);
 
         return new InvoiceResource($invoice->load(['customer', 'lines', 'organization', 'stateTransitions']));
+    }
+
+    /**
+     * Delete an editable invoice.
+     */
+    public function destroy(Invoice $invoice): JsonResponse
+    {
+        $this->authorize('delete', $invoice);
+
+        $invoice->delete();
+
+        return response()->json([
+            'message' => 'Invoice deleted successfully.',
+        ]);
     }
 
     /**
@@ -197,7 +201,7 @@ class InvoiceController extends Controller
      */
     public function lookupIrn(Invoice $invoice): JsonResponse
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('view', $invoice);
 
         if (! $invoice->irn) {
             return response()->json(['message' => 'This invoice has no IRN yet.'], 422);
@@ -216,7 +220,7 @@ class InvoiceController extends Controller
      */
     public function downloadPdf(Invoice $invoice)
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('view', $invoice);
 
         return $this->pdfService->generate($invoice);
     }
@@ -226,7 +230,7 @@ class InvoiceController extends Controller
      */
     public function downloadXml(Invoice $invoice)
     {
-        $this->checkInvoiceTenancy($invoice);
+        $this->authorize('view', $invoice);
 
         $artifact = $this->artifactService->downloadAndStoreXmlIfAvailable($invoice, true);
 
@@ -252,8 +256,6 @@ class InvoiceController extends Controller
      */
     public function updatePaymentStatus(UpdateInvoicePaymentStatusRequest $request, Invoice $invoice): JsonResponse
     {
-        $this->checkInvoiceTenancy($invoice);
-
         if ($response = $this->idempotentReplay($request, "invoice:{$invoice->id}:payment")) {
             return $response;
         }

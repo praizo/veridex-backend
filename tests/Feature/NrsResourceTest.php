@@ -59,6 +59,37 @@ class NrsResourceTest extends TestCase
             ]);
     }
 
+    public function test_can_retrieve_aggregated_resources(): void
+    {
+        $this->mock(NrsResourceService::class, function (MockInterface $mock) {
+            $mock->shouldReceive('getHsCodes')->once()->andReturn([['code' => '1001']]);
+            $mock->shouldReceive('getCurrencies')->once()->andReturn([['code' => 'NGN']]);
+            $mock->shouldReceive('getTaxCategories')->once()->andReturn([['code' => 'STANDARD_VAT']]);
+            $mock->shouldReceive('getInvoiceTypes')->once()->andReturn([['code' => '380']]);
+            $mock->shouldReceive('getPaymentMeans')->once()->andReturn([['code' => '10']]);
+            $mock->shouldReceive('getServiceCodes')->once()->andReturn([['code' => 'SVC1']]);
+            $mock->shouldReceive('getCountries')->once()->andReturn([['code' => 'NG', 'name' => 'Nigeria']]);
+            $mock->shouldReceive('getLgas')->once()->andReturn([['code' => 'LGA1']]);
+            $mock->shouldReceive('getStates')->once()->andReturn([['code' => 'LA']]);
+            $mock->shouldReceive('getVatExemptions')->once()->andReturn([['code' => 'VAT_EX1']]);
+        });
+
+        $response = $this->actingAs($this->user)
+            ->getJson('/api/v1/resources');
+
+        $response->assertOk()
+            ->assertJsonPath('data.hs_codes.0.code', '1001')
+            ->assertJsonPath('data.currencies.0.code', 'NGN')
+            ->assertJsonPath('data.tax_categories.0.code', 'STANDARD_VAT')
+            ->assertJsonPath('data.invoice_types.0.code', '380')
+            ->assertJsonPath('data.payment_means.0.code', '10')
+            ->assertJsonPath('data.service_codes.0.code', 'SVC1')
+            ->assertJsonPath('data.countries.0.code', 'NG')
+            ->assertJsonPath('data.lgas.0.code', 'LGA1')
+            ->assertJsonPath('data.states.0.code', 'LA')
+            ->assertJsonPath('data.vat_exemptions.0.code', 'VAT_EX1');
+    }
+
     public function test_can_retrieve_lgas(): void
     {
         $this->mock(NrsResourceService::class, function (MockInterface $mock) {

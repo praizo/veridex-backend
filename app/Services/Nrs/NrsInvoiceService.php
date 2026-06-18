@@ -251,7 +251,7 @@ class NrsInvoiceService
             );
         }
 
-        $idempotencyKey = (string) Str::uuid();
+        $idempotencyKey = (string) Str::uuid7();
         $payload = $customPayload ?? (in_array($action, [NrsAction::TRANSMIT, NrsAction::CONFIRM]) ? [] : $this->payloadBuilder->buildFullInvoicePayload($invoice));
 
         // Record the attempt
@@ -296,7 +296,7 @@ class NrsInvoiceService
 
             // If signing, update the IRN from the response
             if ($action === NrsAction::SIGN && isset($responseData['irn'])) {
-                $invoice->update(['irn' => $responseData['irn']]);
+                $invoice->forceFill(['irn' => $responseData['irn']])->save();
             }
 
             return $responseData;

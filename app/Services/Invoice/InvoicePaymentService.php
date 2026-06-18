@@ -3,6 +3,7 @@
 namespace App\Services\Invoice;
 
 use App\DTOs\Invoice\UpdateInvoicePaymentStatusDTO;
+use App\Enums\InvoiceStatus;
 use App\Events\InvoicePaymentStatusUpdated;
 use App\Models\Invoice;
 use App\Models\User;
@@ -16,14 +17,15 @@ class InvoicePaymentService
 
     public function updatePaymentStatus(Invoice $invoice, UpdateInvoicePaymentStatusDTO $dto, ?User $actor): Invoice
     {
-        $fiscalizedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'];
-        $currentStatus = $invoice->status->value ?? $invoice->status;
+        $status = $invoice->status instanceof InvoiceStatus
+            ? $invoice->status
+            : InvoiceStatus::tryFrom((string) $invoice->status);
 
-        if (in_array($currentStatus, $fiscalizedStatuses, true) && $dto->paymentStatus !== 'PENDING') {
+        if ($status?->isFiscalized() && $dto->paymentStatus !== 'PENDING') {
             $this->nrsService->updatePayment($invoice, $dto->paymentStatus, $dto->reference);
         }
 
-        $invoice->update(['payment_status' => $dto->paymentStatus]);
+        $invoice->forceFill(['payment_status' => $dto->paymentStatus])->save();
 
         InvoicePaymentStatusUpdated::dispatch($invoice->fresh(), $actor, $dto->paymentStatus, $dto->reference);
 

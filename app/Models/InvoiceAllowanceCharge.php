@@ -10,7 +10,18 @@ class InvoiceAllowanceCharge extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'charge_indicator',
+        'reason_code',
+        'reason_text',
+        'multiplier_factor_numeric',
+        'amount',
+        'base_amount',
+        'tax_category_id',
+        'tax_percent',
+        'tax_scheme_id',
+    ];
 
     protected $casts = [
         'charge_indicator' => 'boolean',

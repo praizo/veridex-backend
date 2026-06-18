@@ -37,7 +37,10 @@ class PlatformOrganizationService
             'onboarding_status' => 'onboarding_status',
         ], 'created_at');
 
-        return $this->paginated($query->paginate($filters->perPage));
+        return $this->paginated(
+            $query->paginate($filters->perPage),
+            fn (Organization $organization) => $this->payload($organization)
+        );
     }
 
     public function find(string $value): Organization
@@ -45,12 +48,12 @@ class PlatformOrganizationService
         return Organization::where('uuid', $value)->orWhere('id', $value)->firstOrFail();
     }
 
-    public function show(string $value): Organization
+    public function show(string $value): array
     {
-        return $this->find($value)->loadCount(['users', 'invoices']);
+        return $this->payload($this->find($value)->loadCount(['users', 'invoices']), includeAdminNotes: true);
     }
 
-    public function update(User $actor, Organization $organization, UpdatePlatformOrganizationDTO $dto): Organization
+    public function update(User $actor, Organization $organization, UpdatePlatformOrganizationDTO $dto): array
     {
         $before = $this->auditSnapshot($organization->only(['platform_status', 'onboarding_status', 'verified_at', 'suspended_at', 'admin_notes']));
 
@@ -81,7 +84,34 @@ class PlatformOrganizationService
             reason: $dto->reason,
         );
 
-        return $organization->fresh();
+        return $this->payload($organization->fresh()->loadCount(['users', 'invoices']), includeAdminNotes: true);
+    }
+
+    private function payload(Organization $organization, bool $includeAdminNotes = false): array
+    {
+        $payload = [
+            'id' => $organization->uuid,
+            'name' => $organization->name,
+            'slug' => $organization->slug,
+            'tin' => $organization->tin,
+            'email' => $organization->email,
+            'telephone' => $organization->telephone,
+            'nrs_business_id' => $organization->nrs_business_id,
+            'platform_status' => $organization->platform_status,
+            'onboarding_status' => $organization->onboarding_status,
+            'verified_at' => $organization->verified_at,
+            'suspended_at' => $organization->suspended_at,
+            'users_count' => $organization->users_count ?? null,
+            'invoices_count' => $organization->invoices_count ?? null,
+            'created_at' => $organization->created_at,
+            'updated_at' => $organization->updated_at,
+        ];
+
+        if ($includeAdminNotes) {
+            $payload['admin_notes'] = $organization->admin_notes;
+        }
+
+        return $payload;
     }
 
     private function auditSnapshot(array $values): array

@@ -10,7 +10,14 @@ class InvoiceDocReference extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'reference_type',
+        'document_id',
+        'issue_date',
+        'document_type_code',
+        'document_description',
+    ];
 
     protected $casts = [
         'issue_date' => 'date',

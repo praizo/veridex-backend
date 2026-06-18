@@ -2,13 +2,17 @@
 
 namespace App\Http\Requests\Report;
 
+use App\Models\Organization;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class InvoiceSummaryRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $organization = Organization::find($this->user()?->currentOrganizationId());
+
+        return $organization && Gate::allows('viewReports', $organization);
     }
 
     public function rules(): array

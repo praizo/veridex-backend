@@ -135,6 +135,46 @@ class Phase3AuditDataControlsTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_activity_log_api_omits_request_context_fields(): void
+    {
+        $organization = Organization::create([
+            'name' => 'Audit Org',
+            'slug' => 'audit-org',
+            'tin' => '12345678-0001',
+            'email' => 'audit@example.com',
+        ]);
+
+        $admin = User::factory()->create([
+            'current_organization_id' => $organization->id,
+            'onboarding_completed_at' => now(),
+        ]);
+        $admin->organizations()->attach($organization->id, ['role' => 'admin']);
+
+        ActivityLog::create([
+            'organization_id' => $organization->id,
+            'user_id' => $admin->id,
+            'action' => 'TEST_CONTEXT',
+            'subject_type' => Organization::class,
+            'subject_id' => $organization->id,
+            'description' => 'Test request context trimming',
+            'metadata' => ['safe_context' => 'kept'],
+            'ip_address' => '10.0.0.1',
+            'user_agent' => 'Internal Browser',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson('/api/v1/activity-logs')
+            ->assertOk();
+
+        $log = $response->json('data.0');
+
+        $this->assertSame('TEST_CONTEXT', $log['action']);
+        $this->assertArrayNotHasKey('ip_address', $log);
+        $this->assertArrayNotHasKey('user_agent', $log);
+        $this->assertArrayNotHasKey('organization_id', $log);
+        $this->assertArrayNotHasKey('user_id', $log);
+    }
+
     public function test_dev_only_nrs_raw_debug_export_writes_raw_payload_with_masked_headers(): void
     {
         Storage::fake('local');

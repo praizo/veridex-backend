@@ -21,7 +21,7 @@ return new class extends Migration
 
             DB::table($table)->whereNull('uuid')->orderBy('id')->chunk(100, function ($records) use ($table) {
                 foreach ($records as $record) {
-                    DB::table($table)->where('id', $record->id)->update(['uuid' => (string) Str::uuid()]);
+                    DB::table($table)->where('id', $record->id)->update(['uuid' => (string) Str::uuid7()]);
                 }
             });
 

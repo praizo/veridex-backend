@@ -2,6 +2,7 @@
 
 namespace App\Services\Nrs;
 
+use App\Enums\InvoiceStatus;
 use App\Exceptions\NrsApiException;
 use App\Models\Invoice;
 use Illuminate\Http\Client\Response;
@@ -173,10 +174,11 @@ class NrsArtifactService
 
     private function ensureDownloadable(Invoice $invoice): void
     {
-        $status = $invoice->status?->value ?? $invoice->status;
-        $fiscalizedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'];
+        $status = $invoice->status instanceof InvoiceStatus
+            ? $invoice->status
+            : InvoiceStatus::tryFrom((string) $invoice->status);
 
-        if (! $invoice->irn || ! in_array($status, $fiscalizedStatuses, true)) {
+        if (! $invoice->irn || ! $status?->isFiscalized()) {
             throw new NrsApiException('Official NRS artifacts are only available after an invoice is signed.', 422);
         }
     }

@@ -2,6 +2,7 @@
 
 namespace App\Services\Invoice;
 
+use App\Enums\InvoiceStatus;
 use App\Models\Invoice;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Collection;
@@ -51,9 +52,11 @@ SVG;
         $pdf->setPaper('a4', 'portrait');
 
         $pdfBinary = $pdf->output();
-        $status = $invoice->status?->value ?? $invoice->status;
+        $status = $invoice->status instanceof InvoiceStatus
+            ? $invoice->status
+            : InvoiceStatus::tryFrom((string) $invoice->status);
 
-        if (in_array($status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed']) && ! $invoice->pdf_hash) {
+        if ($status?->isFiscalized() && ! $invoice->pdf_hash) {
             $invoice->forceFill(['pdf_hash' => hash('sha256', $pdfBinary)])->save();
         }
 
@@ -65,10 +68,11 @@ SVG;
 
     public function applyImmutableSnapshots(Invoice $invoice): Invoice
     {
-        $status = $invoice->status?->value ?? $invoice->status;
-        $fiscalizedStatuses = ['signed', 'pending_transmit', 'transmit_failed', 'transmitted'];
+        $status = $invoice->status instanceof InvoiceStatus
+            ? $invoice->status
+            : InvoiceStatus::tryFrom((string) $invoice->status);
 
-        if (! in_array($status, $fiscalizedStatuses, true)) {
+        if (! $status?->isFiscalized()) {
             return $invoice;
         }
 

@@ -49,15 +49,18 @@ class PlatformUserService
             ], 'users.created_at');
         }
 
-        return $this->paginated($query->paginate($filters->perPage));
+        return $this->paginated(
+            $query->paginate($filters->perPage),
+            fn (User $user) => $this->payload($user)
+        );
     }
 
-    public function show(User $user): User
+    public function show(User $user): array
     {
-        return $user->load('currentOrganization', 'organizations', 'platformAdmin');
+        return $this->payload($user->load('currentOrganization', 'organizations', 'platformAdmin'), includeOrganizations: true);
     }
 
-    public function update(User $actor, User $user, UpdatePlatformUserDTO $dto): User
+    public function update(User $actor, User $user, UpdatePlatformUserDTO $dto): array
     {
         if ($actor->is($user)) {
             if ($dto->hasPlatformRole && $dto->platformRole !== 'super_admin') {
@@ -94,7 +97,51 @@ class PlatformUserService
             reason: $dto->reason,
         );
 
-        return $user->fresh(['currentOrganization', 'platformAdmin']);
+        return $this->payload($user->fresh(['currentOrganization', 'platformAdmin']));
+    }
+
+    private function payload(User $user, bool $includeOrganizations = false): array
+    {
+        $payload = [
+            'id' => $user->uuid,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
+            'name' => $user->name,
+            'email' => $user->email,
+            'email_verified_at' => $user->email_verified_at,
+            'suspended_at' => $user->suspended_at,
+            'current_organization' => $this->organizationPayload($user->currentOrganization),
+            'organizations_count' => $user->organizations_count ?? null,
+            'platform_role' => $user->platform_role,
+            'created_at' => $user->created_at,
+            'updated_at' => $user->updated_at,
+        ];
+
+        if ($includeOrganizations) {
+            $payload['organizations'] = $user->organizations
+                ->map(fn ($organization) => array_merge(
+                    $this->organizationPayload($organization) ?? [],
+                    ['role' => $organization->pivot?->role],
+                ))
+                ->values()
+                ->all();
+        }
+
+        return $payload;
+    }
+
+    private function organizationPayload($organization): ?array
+    {
+        if (! $organization) {
+            return null;
+        }
+
+        return [
+            'id' => $organization->uuid,
+            'name' => $organization->name,
+            'tin' => $organization->tin,
+            'email' => $organization->email,
+        ];
     }
 
     private function updatePlatformRole(User $actor, User $user, ?string $role): void

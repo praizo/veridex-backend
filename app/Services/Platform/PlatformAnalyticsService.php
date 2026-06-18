@@ -88,10 +88,12 @@ class PlatformAnalyticsService
 
     private function invoiceVolume(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('issue_date', 'month');
+
         return $this->invoiceBaseQuery($filters)
-            ->selectRaw("DATE_FORMAT(issue_date, '%Y-%m') as period, COUNT(*) as total_count")
+            ->selectRaw("{$period} as period, COUNT(*) as total_count")
             ->whereNotNull('issue_date')
-            ->groupByRaw("DATE_FORMAT(issue_date, '%Y-%m')")
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
@@ -101,10 +103,12 @@ class PlatformAnalyticsService
 
     private function invoiceValue(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('issue_date', 'month');
+
         return $this->invoiceBaseQuery($filters)
-            ->selectRaw("DATE_FORMAT(issue_date, '%Y-%m') as period, SUM(payable_amount) as total_value")
+            ->selectRaw("{$period} as period, SUM(payable_amount) as total_value")
             ->whereNotNull('issue_date')
-            ->groupByRaw("DATE_FORMAT(issue_date, '%Y-%m')")
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => ['period' => $row->period, 'total_value' => (float) $row->total_value])
@@ -146,11 +150,13 @@ class PlatformAnalyticsService
 
     private function organizationTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('created_at', 'month');
+
         return Organization::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period, COUNT(*) as total_count")
-            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+            ->selectRaw("{$period} as period, COUNT(*) as total_count")
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
@@ -160,14 +166,16 @@ class PlatformAnalyticsService
 
     private function nrsTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('created_at', 'day');
+
         return NrsApiLog::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
             ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId))
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m-%d') as period")
-            ->selectRaw('SUM(status_code < 400) as success')
-            ->selectRaw('SUM(status_code >= 400) as failed')
-            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m-%d')")
+            ->selectRaw("{$period} as period")
+            ->selectRaw('SUM(CASE WHEN status_code < 400 THEN 1 ELSE 0 END) as success')
+            ->selectRaw('SUM(CASE WHEN status_code >= 400 THEN 1 ELSE 0 END) as failed')
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => [
@@ -181,11 +189,13 @@ class PlatformAnalyticsService
 
     private function userGrowth(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('created_at', 'month');
+
         return User::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period, COUNT(*) as total_count")
-            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+            ->selectRaw("{$period} as period, COUNT(*) as total_count")
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
@@ -195,16 +205,34 @@ class PlatformAnalyticsService
 
     private function activityTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
+        $period = $this->datePeriodExpression('created_at', 'day');
+
         return ActivityLog::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
             ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId))
-            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m-%d') as period, COUNT(*) as total_count")
-            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m-%d')")
+            ->selectRaw("{$period} as period, COUNT(*) as total_count")
+            ->groupByRaw($period)
             ->orderBy('period')
             ->get()
             ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
             ->values()
             ->all();
+    }
+
+    private function datePeriodExpression(string $column, string $grain): string
+    {
+        $format = $grain === 'day' ? '%Y-%m-%d' : '%Y-%m';
+        $postgresFormat = $grain === 'day' ? 'YYYY-MM-DD' : 'YYYY-MM';
+        $driver = DB::connection()->getDriverName();
+
+        return match ($driver) {
+            'pgsql' => "to_char({$column}, '{$postgresFormat}')",
+            'sqlite' => "strftime('{$format}', {$column})",
+            'sqlsrv' => $grain === 'day'
+                ? "FORMAT({$column}, 'yyyy-MM-dd')"
+                : "FORMAT({$column}, 'yyyy-MM')",
+            default => "DATE_FORMAT({$column}, '{$format}')",
+        };
     }
 }

@@ -23,7 +23,7 @@ class Phase1AuthorizationTest extends TestCase
             'slug' => str($name)->slug()->toString(),
             'tin' => '12345678-0001',
             'email' => str($name)->slug().'@test.com',
-            'nrs_business_id' => (string) Str::uuid(),
+            'nrs_business_id' => (string) Str::uuid7(),
         ]);
     }
 

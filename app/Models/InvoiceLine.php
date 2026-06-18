@@ -10,7 +10,26 @@ class InvoiceLine extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'line_id',
+        'item_type',
+        'invoiced_quantity',
+        'unit_code',
+        'line_extension_amount',
+        'item_name',
+        'item_description',
+        'hs_code',
+        'item_category',
+        'item_standard_id',
+        'price_amount',
+        'price_base_quantity',
+        'tax_category_id',
+        'tax_percent',
+        'tax_scheme_id',
+        'isic_code',
+        'service_category',
+    ];
 
     protected $casts = [
         'invoiced_quantity' => 'decimal:2',

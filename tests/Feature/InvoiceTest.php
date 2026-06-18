@@ -179,6 +179,18 @@ class InvoiceTest extends TestCase
         $this->assertDatabaseMissing('invoices', ['invoice_number' => 'CLIENT-CANNOT-SET-2']);
     }
 
+    public function test_invalid_customer_uuid_returns_validation_error(): void
+    {
+        $payload = $this->validInvoicePayload([
+            'customer_id' => '00000000-0000-7000-8000-000000000000',
+        ]);
+
+        $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $payload)
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('customer_id');
+    }
+
     public function test_client_supplied_totals_are_recalculated_server_side(): void
     {
         $payload = $this->validInvoicePayload([
@@ -224,6 +236,25 @@ class InvoiceTest extends TestCase
         $this->assertSame('300.00', $invoice->taxTotals()->firstOrFail()->tax_amount);
     }
 
+    public function test_invoice_response_omits_internal_relation_and_artifact_fields(): void
+    {
+        $response = $this->actingAs($this->user)
+            ->postJson('/api/v1/invoices', $this->validInvoicePayload());
+
+        $response->assertCreated();
+
+        $data = $response->json('data');
+
+        $this->assertArrayNotHasKey('seller_snapshot', $data);
+        $this->assertArrayNotHasKey('buyer_snapshot', $data);
+        $this->assertArrayNotHasKey('pdf_hash', $data);
+        $this->assertArrayNotHasKey('official_pdf_hash', $data);
+        $this->assertArrayNotHasKey('platform_status', $data['organization']);
+        $this->assertArrayNotHasKey('admin_notes', $data['organization']);
+        $this->assertArrayNotHasKey('invoice_id', $data['lines'][0]);
+        $this->assertArrayNotHasKey('organization_id', $data['lines'][0]);
+    }
+
     public function test_signed_invoice_snapshots_do_not_change_when_master_data_changes(): void
     {
         $this->actingAs($this->user)->postJson('/api/v1/invoices', $this->validInvoicePayload())
@@ -262,15 +293,17 @@ class InvoiceTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-2026-000001',
-            'status' => 'signed',
             'payment_status' => 'PENDING',
             'issue_date' => now(),
-            'irn' => 'TEST-IRN-LOCAL-PDF',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill([
+            'status' => 'signed',
+            'irn' => 'TEST-IRN-LOCAL-PDF',
+        ])->save();
 
         $response = $this->actingAs($this->user)
             ->get("/api/v1/invoices/{$invoice->uuid}/download");
@@ -320,15 +353,17 @@ class InvoiceTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-004',
-            'status' => 'signed',
             'payment_status' => 'PENDING',
             'issue_date' => now(),
-            'irn' => 'TEST-IRN-12345',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill([
+            'status' => 'signed',
+            'irn' => 'TEST-IRN-12345',
+        ])->save();
 
         $this->mock(NrsInvoiceService::class, function (MockInterface $mock) use ($invoice) {
             $mock->shouldReceive('updatePayment')
@@ -357,15 +392,17 @@ class InvoiceTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-005',
-            'status' => 'signed',
             'payment_status' => 'PAID',
             'issue_date' => now(),
-            'irn' => 'TEST-IRN-12346',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill([
+            'status' => 'signed',
+            'irn' => 'TEST-IRN-12346',
+        ])->save();
 
         $this->mock(NrsInvoiceService::class, function (MockInterface $mock) {
             $mock->shouldNotReceive('updatePayment');
@@ -388,15 +425,17 @@ class InvoiceTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-006',
-            'status' => 'signed',
             'payment_status' => 'PENDING',
             'issue_date' => now(),
-            'irn' => 'TEST-IRN-12347',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill([
+            'status' => 'signed',
+            'irn' => 'TEST-IRN-12347',
+        ])->save();
 
         Http::fake([
             '*/api/v1/invoice/update/*' => Http::response([
@@ -453,7 +492,7 @@ class InvoiceTest extends TestCase
             ->assertOk()
             ->assertJsonPath('data.status', 'draft');
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::VALIDATION_FAILED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::VALIDATION_FAILED])->save();
 
         $this->actingAs($this->user)
             ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload([
@@ -490,7 +529,7 @@ class InvoiceTest extends TestCase
             ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
             ->assertStatus(409);
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMITTED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::TRANSMITTED])->save();
 
         $this->actingAs($this->user)
             ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
@@ -510,7 +549,7 @@ class InvoiceTest extends TestCase
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'test');
         $stateService->transition($invoice->fresh(), InvoiceStatus::SIGNED, $this->user, 'test');
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::VALIDATION_FAILED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::VALIDATION_FAILED])->save();
 
         $this->actingAs($this->user)
             ->putJson("/api/v1/invoices/{$invoice->uuid}", $this->validInvoicePayload())
@@ -523,7 +562,6 @@ class InvoiceTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-STATE-001',
-            'status' => 'draft',
             'payment_status' => 'PENDING',
             'issue_date' => now(),
             'line_extension_amount' => 1000,
@@ -537,13 +575,13 @@ class InvoiceTest extends TestCase
         $stateService->transition($invoice->fresh(), InvoiceStatus::VALIDATION_FAILED, $this->user, 'test');
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_VALIDATION, $this->user, 'retry validation');
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::SIGN_FAILED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::SIGN_FAILED])->save();
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_SIGNING, $this->user, 'retry signing');
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMIT_FAILED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::TRANSMIT_FAILED])->save();
         $stateService->transition($invoice->fresh(), InvoiceStatus::PENDING_TRANSMIT, $this->user, 'retry transmit');
 
-        $invoice->fresh()->update(['status' => InvoiceStatus::TRANSMITTED]);
+        $invoice->fresh()->forceFill(['status' => InvoiceStatus::TRANSMITTED])->save();
 
         $this->expectException(InvoiceStateException::class);
         $stateService->transition($invoice->fresh(), InvoiceStatus::CONFIRMED, $this->user, 'confirm should be deferred');

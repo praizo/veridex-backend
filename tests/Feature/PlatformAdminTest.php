@@ -4,6 +4,7 @@ namespace Tests\Feature;
 
 use App\Models\Customer;
 use App\Models\Invoice;
+use App\Models\NrsApiLog;
 use App\Models\Organization;
 use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
@@ -235,6 +236,35 @@ class PlatformAdminTest extends TestCase
         ]);
     }
 
+    public function test_platform_system_response_omits_raw_nrs_payloads(): void
+    {
+        $admin = $this->platformAdmin();
+        $organization = $this->organization('System Org');
+
+        NrsApiLog::create([
+            'organization_id' => $organization->id,
+            'irn' => 'IRN-SYSTEM-001',
+            'endpoint' => 'api/v1/invoice/sign',
+            'method' => 'POST',
+            'request_payload' => ['business_id' => '[REDACTED]'],
+            'response_body' => ['error' => 'Unable to sign'],
+            'status_code' => 500,
+            'latency_ms' => 120.5,
+            'ip_address' => '10.0.0.1',
+        ]);
+
+        $response = $this->actingAs($admin)
+            ->getJson('/api/v1/platform/system')
+            ->assertOk();
+
+        $failure = $response->json('data.nrs_failures.0');
+
+        $this->assertSame('IRN-SYSTEM-001', $failure['irn']);
+        $this->assertArrayNotHasKey('request_payload', $failure);
+        $this->assertArrayNotHasKey('response_body', $failure);
+        $this->assertArrayNotHasKey('ip_address', $failure);
+    }
+
     public function test_platform_admin_can_revoke_own_access_when_another_active_super_admin_exists(): void
     {
         $admin = $this->platformAdmin();
@@ -283,7 +313,7 @@ class PlatformAdminTest extends TestCase
             'slug' => Str::slug($name).'-'.fake()->unique()->numberBetween(1000, 9999),
             'tin' => fake()->numerify('########-####'),
             'email' => fake()->safeEmail(),
-            'nrs_business_id' => fake()->uuid(),
+            'nrs_business_id' => (string) Str::uuid7(),
             'onboarding_status' => 'onboarded',
             'verified_at' => now(),
         ]);
@@ -311,11 +341,10 @@ class PlatformAdminTest extends TestCase
             'email' => fake()->safeEmail(),
         ]);
 
-        return Invoice::create([
+        $invoice = Invoice::create([
             'organization_id' => $organization->id,
             'customer_id' => $customer->id,
             'invoice_number' => $number,
-            'status' => $status,
             'payment_status' => 'PENDING',
             'issue_date' => today(),
             'due_date' => today()->addDays(30),
@@ -325,5 +354,9 @@ class PlatformAdminTest extends TestCase
             'tax_inclusive_amount' => $amount,
             'payable_amount' => $amount,
         ]);
+
+        $invoice->forceFill(['status' => $status])->save();
+
+        return $invoice;
     }
 }

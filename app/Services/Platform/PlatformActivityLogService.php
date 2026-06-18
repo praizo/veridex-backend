@@ -3,6 +3,7 @@
 namespace App\Services\Platform;
 
 use App\DTOs\Platform\PlatformListFiltersDTO;
+use App\Http\Resources\ActivityLogResource;
 use App\Models\ActivityLog;
 use App\Services\Platform\Concerns\PaginatesPlatformResults;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,6 +35,9 @@ class PlatformActivityLogService
 
         $this->applySort($query, $filters, ['created_at' => 'created_at', 'action' => 'action'], 'created_at');
 
-        return $this->paginated($query->paginate($filters->perPage));
+        return $this->paginated(
+            $query->paginate($filters->perPage),
+            fn (ActivityLog $log) => (new ActivityLogResource($log))->resolve()
+        );
     }
 }

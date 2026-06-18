@@ -4,9 +4,9 @@ namespace App\Http\Controllers\Api\Report;
 
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\InvoiceSummaryRequest;
+use App\Models\Organization;
 use App\Services\Report\ReportService;
 use Illuminate\Http\JsonResponse;
-use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class ReportController extends Controller
@@ -21,6 +21,8 @@ class ReportController extends Controller
     public function invoiceSummary(InvoiceSummaryRequest $request): JsonResponse
     {
         $orgId = $request->user()->current_organization_id;
+        $this->authorize('viewReports', Organization::findOrFail($orgId));
+
         $analytics = $this->reportService->getInvoiceAnalytics($orgId, $request->filters());
 
         return response()->json([
@@ -36,7 +38,7 @@ class ReportController extends Controller
     /**
      * Backward-compatible B2C summary endpoint.
      */
-    public function b2cSummary(Request $request): JsonResponse
+    public function b2cSummary(InvoiceSummaryRequest $request): JsonResponse
     {
         $request->merge(['customer_type' => 'individual']);
 

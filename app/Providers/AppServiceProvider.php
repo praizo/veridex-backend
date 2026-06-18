@@ -18,6 +18,14 @@ use App\Listeners\SendTeamMemberRemovedEmail;
 use App\Listeners\SendTeamRoleChangedEmail;
 use App\Listeners\WriteInvoicePaymentActivityLog;
 use App\Listeners\WritePlatformActivityLog;
+use App\Models\Customer;
+use App\Models\Invoice;
+use App\Models\Organization;
+use App\Models\Product;
+use App\Policies\CustomerPolicy;
+use App\Policies\InvoicePolicy;
+use App\Policies\OrganizationPolicy;
+use App\Policies\ProductPolicy;
 use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
@@ -46,6 +54,11 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Gate::policy(Invoice::class, InvoicePolicy::class);
+        Gate::policy(Customer::class, CustomerPolicy::class);
+        Gate::policy(Product::class, ProductPolicy::class);
+        Gate::policy(Organization::class, OrganizationPolicy::class);
+
         RateLimiter::for('api', function (Request $request) {
             return Limit::perMinute(60)->by($request->user()?->id ?: $request->ip());
         });

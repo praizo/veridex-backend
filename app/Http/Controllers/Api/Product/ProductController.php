@@ -19,6 +19,8 @@ class ProductController extends Controller
 
     public function index(Request $request): JsonResponse
     {
+        $this->authorize('viewAny', Product::class);
+
         $products = Product::where('organization_id', $request->user()->current_organization_id)
             ->latest()
             ->paginate($request->query('per_page', 15));
@@ -41,15 +43,13 @@ class ProductController extends Controller
 
     public function show(Request $request, Product $product): ProductResource
     {
-        $this->authorizeOrganizationAccess($product, $request);
+        $this->authorize('view', $product);
 
         return new ProductResource($product);
     }
 
     public function update(UpdateProductRequest $request, Product $product): JsonResponse
     {
-        $this->authorizeOrganizationAccess($product, $request);
-
         $this->productService->update($product, $request->toServiceData());
 
         return response()->json([
@@ -60,19 +60,12 @@ class ProductController extends Controller
 
     public function destroy(Request $request, Product $product): JsonResponse
     {
-        $this->authorizeOrganizationAccess($product, $request);
+        $this->authorize('delete', $product);
 
         $product->delete();
 
         return response()->json([
             'message' => 'Product deleted successfully.',
         ]);
-    }
-
-    private function authorizeOrganizationAccess(Product $product, Request $request): void
-    {
-        if ($product->organization_id !== $request->user()->current_organization_id) {
-            abort(403, 'Unauthorized access to product');
-        }
     }
 }

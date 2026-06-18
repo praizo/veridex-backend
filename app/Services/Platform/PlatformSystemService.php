@@ -25,9 +25,32 @@ class PlatformSystemService
         return [
             'failed_jobs' => $this->failedJobsCount(),
             'recent_failed_jobs' => Schema::hasTable('failed_jobs')
-                ? DB::table('failed_jobs')->latest('failed_at')->limit(10)->get(['uuid', 'connection', 'queue', 'exception', 'failed_at'])
+                ? DB::table('failed_jobs')
+                    ->latest('failed_at')
+                    ->limit(10)
+                    ->get(['uuid', 'connection', 'queue', 'exception', 'failed_at'])
+                    ->map(fn ($job) => [
+                        'uuid' => $job->uuid,
+                        'connection' => $job->connection,
+                        'queue' => $job->queue,
+                        'exception_summary' => str($job->exception)->limit(500)->toString(),
+                        'failed_at' => $job->failed_at,
+                    ])
                 : [],
-            'nrs_failures' => NrsApiLog::where('status_code', '>=', 400)->latest()->limit(10)->get(),
+            'nrs_failures' => NrsApiLog::where('status_code', '>=', 400)
+                ->latest()
+                ->limit(10)
+                ->get(['id', 'organization_id', 'irn', 'endpoint', 'method', 'status_code', 'latency_ms', 'created_at'])
+                ->map(fn (NrsApiLog $log) => [
+                    'id' => $log->id,
+                    'organization_id' => $log->organization_id,
+                    'irn' => $log->irn,
+                    'endpoint' => $log->endpoint,
+                    'method' => $log->method,
+                    'status_code' => $log->status_code,
+                    'latency_ms' => $log->latency_ms,
+                    'created_at' => $log->created_at,
+                ]),
             'mail_failures' => $this->failedJobsCount('%Mail%'),
             'activity_last_24h' => ActivityLog::where('created_at', '>=', now()->subDay())->count(),
         ];

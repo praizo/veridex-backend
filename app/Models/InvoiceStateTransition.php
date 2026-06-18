@@ -10,7 +10,16 @@ class InvoiceStateTransition extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'user_id',
+        'from_status',
+        'to_status',
+        'trigger',
+        'note',
+        'metadata',
+        'ip_address',
+    ];
 
     protected $casts = [
         'metadata' => 'array',

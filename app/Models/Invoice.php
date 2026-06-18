@@ -24,7 +24,37 @@ class Invoice extends Model
         return 'uuid';
     }
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'organization_id',
+        'customer_id',
+        'created_by',
+        'invoice_number',
+        'payment_status',
+        'invoice_type_code',
+        'invoice_kind',
+        'issue_date',
+        'issue_time',
+        'due_date',
+        'document_currency_code',
+        'tax_currency_code',
+        'note',
+        'tax_point_date',
+        'accounting_cost',
+        'buyer_reference',
+        'order_reference',
+        'actual_delivery_date',
+        'delivery_period_start',
+        'delivery_period_end',
+        'payment_terms_note',
+        'line_extension_amount',
+        'tax_exclusive_amount',
+        'tax_inclusive_amount',
+        'allowance_total_amount',
+        'charge_total_amount',
+        'prepaid_amount',
+        'payable_rounding_amount',
+        'payable_amount',
+    ];
 
     protected $casts = [
         'issue_date' => 'date',
@@ -44,6 +74,10 @@ class Invoice extends Model
     protected static function booted()
     {
         static::creating(function ($invoice) {
+            if (! $invoice->status) {
+                $invoice->status = InvoiceStatus::DRAFT;
+            }
+
             $organization = $invoice->organization ?? Organization::find($invoice->organization_id);
             if ($organization && $invoice->invoice_number && $invoice->issue_date) {
                 // NRS rules: all uppercase, no spaces, only '-' special character allowed

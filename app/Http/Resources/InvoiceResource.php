@@ -79,26 +79,21 @@ class InvoiceResource extends JsonResource
             'tax_exclusive_amount' => (float) $this->tax_exclusive_amount,
             'tax_inclusive_amount' => (float) $this->tax_inclusive_amount,
             'payable_amount' => (float) $this->payable_amount,
-            'seller_snapshot' => $this->seller_snapshot,
-            'buyer_snapshot' => $this->buyer_snapshot,
-            'line_snapshot' => $this->line_snapshot,
-            'tax_snapshot' => $this->tax_snapshot,
-            'pdf_hash' => $this->pdf_hash,
-            'xml_hash' => $this->xml_hash,
-            'official_pdf_hash' => $this->official_pdf_hash,
-            'official_xml_hash' => $this->official_xml_hash,
             'has_official_pdf' => (bool) $this->official_pdf_path,
             'has_official_xml' => (bool) $this->official_xml_path,
 
             // Relationships
-            'organization' => $this->whenLoaded('organization'),
-            'customer' => $this->whenLoaded('customer'),
-            'lines' => $this->whenLoaded('lines'),
-            'tax_totals' => $this->whenLoaded('taxTotals'),
-            'payment_means' => $this->whenLoaded('paymentMeans'),
-            'nrs_submissions' => $this->whenLoaded('nrsSubmissions'),
+            'organization' => $this->whenLoaded('organization', fn () => (new OrganizationResource($this->organization))->resolve($request)),
+            'customer' => $this->whenLoaded('customer', fn () => (new CustomerResource($this->customer))->resolve($request)),
+            'lines' => $this->whenLoaded('lines', fn () => $this->lines->map(fn ($line) => $this->linePayload($line))->values()),
+            'tax_totals' => $this->whenLoaded('taxTotals', fn () => $this->taxTotals->map(fn ($taxTotal) => $this->taxTotalPayload($taxTotal))->values()),
+            'payment_means' => $this->whenLoaded('paymentMeans', fn () => $this->paymentMeans->map(fn ($paymentMean) => $this->paymentMeanPayload($paymentMean))->values()),
+            'nrs_submissions' => $this->whenLoaded('nrsSubmissions', fn () => $this->nrsSubmissions->map(fn ($submission) => $this->nrsSubmissionPayload($submission))->values()),
             'state_transitions' => $this->whenLoaded('stateTransitions', function () {
-                return $this->stateTransitions->sortByDesc('id')->values();
+                return $this->stateTransitions
+                    ->sortByDesc('id')
+                    ->map(fn ($transition) => $this->stateTransitionPayload($transition))
+                    ->values();
             }),
 
             'qr_code_url' => $this->irn && in_array($status, ['signed', 'pending_transmit', 'transmit_failed', 'transmitted', 'confirmed'], true)
@@ -107,6 +102,77 @@ class InvoiceResource extends JsonResource
 
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+        ];
+    }
+
+    private function linePayload($line): array
+    {
+        return [
+            'line_id' => $line->line_id,
+            'item_type' => $line->item_type,
+            'invoiced_quantity' => $line->invoiced_quantity,
+            'unit_code' => $line->unit_code,
+            'line_extension_amount' => $line->line_extension_amount,
+            'item_name' => $line->item_name,
+            'item_description' => $line->item_description,
+            'hs_code' => $line->hs_code,
+            'item_category' => $line->item_category,
+            'item_standard_id' => $line->item_standard_id,
+            'price_amount' => $line->price_amount,
+            'price_base_quantity' => $line->price_base_quantity,
+            'tax_category_id' => $line->tax_category_id,
+            'tax_percent' => $line->tax_percent,
+            'tax_scheme_id' => $line->tax_scheme_id,
+            'isic_code' => $line->isic_code,
+            'service_category' => $line->service_category,
+        ];
+    }
+
+    private function taxTotalPayload($taxTotal): array
+    {
+        return [
+            'tax_amount' => $taxTotal->tax_amount,
+            'taxable_amount' => $taxTotal->taxable_amount,
+            'tax_category_id' => $taxTotal->tax_category_id,
+            'tax_percent' => $taxTotal->tax_percent,
+            'tax_scheme_id' => $taxTotal->tax_scheme_id,
+        ];
+    }
+
+    private function paymentMeanPayload($paymentMean): array
+    {
+        return [
+            'payment_means_code' => $paymentMean->payment_means_code,
+            'payee_financial_account_id' => $paymentMean->payee_financial_account_id,
+            'payee_financial_account_name' => $paymentMean->payee_financial_account_name,
+            'financial_institution_branch_id' => $paymentMean->financial_institution_branch_id,
+        ];
+    }
+
+    private function nrsSubmissionPayload($submission): array
+    {
+        return [
+            'correlation_id' => $submission->correlation_id,
+            'action' => $submission->action,
+            'status' => $submission->status,
+            'http_status_code' => $submission->http_status_code,
+            'error_code' => $submission->error_code,
+            'error_message' => $submission->error_message,
+            'attempt_number' => $submission->attempt_number,
+            'response_time_ms' => $submission->response_time_ms,
+            'submitted_at' => $submission->submitted_at,
+            'responded_at' => $submission->responded_at,
+        ];
+    }
+
+    private function stateTransitionPayload($transition): array
+    {
+        return [
+            'from_status' => $this->enumValue($transition->from_status),
+            'to_status' => $this->enumValue($transition->to_status),
+            'trigger' => $transition->trigger,
+            'note' => $transition->note,
+            'created_at' => $transition->created_at,
         ];
     }
 }

@@ -10,7 +10,13 @@ class InvoicePaymentMeans extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'payment_means_code',
+        'payee_financial_account_id',
+        'payee_financial_account_name',
+        'financial_institution_branch_id',
+    ];
 
     public function invoice(): BelongsTo
     {

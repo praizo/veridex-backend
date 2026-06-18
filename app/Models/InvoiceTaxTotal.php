@@ -10,7 +10,14 @@ class InvoiceTaxTotal extends Model
 {
     use HasFactory;
 
-    protected $guarded = ['id'];
+    protected $fillable = [
+        'invoice_id',
+        'tax_amount',
+        'taxable_amount',
+        'tax_category_id',
+        'tax_percent',
+        'tax_scheme_id',
+    ];
 
     protected $casts = [
         'tax_amount' => 'decimal:2',

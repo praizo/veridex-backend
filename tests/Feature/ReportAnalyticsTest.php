@@ -206,17 +206,20 @@ class ReportAnalyticsTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $customer->id,
             'invoice_number' => $number,
-            'status' => $status,
             'payment_status' => $paymentStatus,
             'issue_date' => $issueDate,
             'due_date' => '2026-06-30',
             'document_currency_code' => 'NGN',
-            'irn' => "{$number}-IRN",
             'line_extension_amount' => $taxExclusive,
             'tax_exclusive_amount' => $taxExclusive,
             'tax_inclusive_amount' => $payable,
             'payable_amount' => $payable,
         ]);
+
+        $invoice->forceFill([
+            'status' => $status,
+            'irn' => "{$number}-IRN",
+        ])->save();
 
         $invoice->taxTotals()->create([
             'tax_amount' => $taxAmount,

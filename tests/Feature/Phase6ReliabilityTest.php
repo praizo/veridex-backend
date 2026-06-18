@@ -86,15 +86,17 @@ class Phase6ReliabilityTest extends TestCase
             'organization_id' => $this->organization->id,
             'customer_id' => $this->customer->id,
             'invoice_number' => 'INV-2026-000001',
-            'status' => InvoiceStatus::SIGNED,
             'payment_status' => 'PENDING',
             'issue_date' => now(),
-            'irn' => 'TEST-IRN-12345',
             'line_extension_amount' => 1000,
             'tax_exclusive_amount' => 1000,
             'tax_inclusive_amount' => 1075,
             'payable_amount' => 1075,
         ]);
+        $invoice->forceFill([
+            'status' => InvoiceStatus::SIGNED,
+            'irn' => 'TEST-IRN-12345',
+        ])->save();
 
         $payload = ['message' => 'TRANSMITTING', 'irn' => $invoice->irn];
         $job = new ProcessNrsWebhookJob($payload);

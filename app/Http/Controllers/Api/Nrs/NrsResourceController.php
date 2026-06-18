@@ -12,6 +12,24 @@ class NrsResourceController extends Controller
         protected NrsResourceService $resourceService
     ) {}
 
+    public function index(): JsonResponse
+    {
+        return response()->json([
+            'data' => [
+                'hs_codes' => $this->resourceService->getHsCodes(),
+                'currencies' => $this->resourceService->getCurrencies(),
+                'tax_categories' => $this->resourceService->getTaxCategories(),
+                'invoice_types' => $this->resourceService->getInvoiceTypes(),
+                'payment_means' => $this->resourceService->getPaymentMeans(),
+                'service_codes' => $this->resourceService->getServiceCodes(),
+                'countries' => $this->resourceService->getCountries(),
+                'lgas' => $this->resourceService->getLgas(),
+                'states' => $this->resourceService->getStates(),
+                'vat_exemptions' => $this->resourceService->getVatExemptions(),
+            ],
+        ]);
+    }
+
     public function hsCodes(): JsonResponse
     {
         return response()->json(['data' => $this->resourceService->getHsCodes()]);

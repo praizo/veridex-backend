@@ -13,10 +13,16 @@ trait PaginatesPlatformResults
         $query->orderBy($sort, $filters->direction);
     }
 
-    protected function paginated($paginator): array
+    protected function paginated($paginator, ?callable $map = null): array
     {
+        $items = $paginator->getCollection();
+
+        if ($map) {
+            $items = $items->map($map);
+        }
+
         return [
-            'data' => $paginator->items(),
+            'data' => $items->values()->all(),
             'meta' => [
                 'current_page' => $paginator->currentPage(),
                 'last_page' => $paginator->lastPage(),

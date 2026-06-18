@@ -2,23 +2,17 @@
 
 namespace App\Http\Requests\Organization;
 
+use App\Models\Organization;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 
 class UpdateOrganizationRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        // Only owners or admins can update organization settings
-        $user = $this->user();
-        $orgId = $user->currentOrganizationId();
+        $organization = Organization::find($this->user()?->currentOrganizationId());
 
-        $role = $user->organizations()
-            ->where('organization_id', $orgId)
-            ->first()
-            ->pivot
-            ->role;
-
-        return in_array($role, ['owner', 'admin']);
+        return $organization && Gate::allows('update', $organization);
     }
 
     public function rules(): array

@@ -36,7 +36,6 @@ class InvoiceService
             $calculated = $this->calculateAuthoritativeAmounts($dto);
             $invoiceData = $dto->toInvoiceArray();
             $invoiceData = array_merge($invoiceData, $calculated['totals']);
-            $invoiceData['status'] = InvoiceStatus::DRAFT;
             $invoiceData['invoice_number'] = $this->generateNextNumber($dto->organization_id);
 
             if (empty($invoiceData['invoice_kind'])) {
@@ -116,9 +115,8 @@ class InvoiceService
             $invoiceData = array_merge($dto->toInvoiceArray(), $calculated['totals']);
 
             unset($invoiceData['organization_id'], $invoiceData['created_by'], $invoiceData['invoice_number']);
-            $invoiceData['status'] = InvoiceStatus::DRAFT;
-
             $invoice->update($invoiceData);
+            $invoice->forceFill(['status' => InvoiceStatus::DRAFT])->save();
             $invoice->lines()->delete();
             $invoice->taxTotals()->delete();
             $invoice->paymentMeans()->delete();

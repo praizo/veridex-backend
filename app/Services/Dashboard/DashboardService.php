@@ -29,18 +29,18 @@ class DashboardService
         return Cache::remember("dashboard:stats:{$organizationId}", 30, function () use ($organizationId) {
             $invoiceStats = Invoice::where('organization_id', $organizationId)
                 ->selectRaw('COUNT(*) as total_invoices')
-                ->selectRaw("SUM(status = ?) as validated", [InvoiceStatus::VALIDATED->value])
-                ->selectRaw("SUM(status = ?) as signed", [InvoiceStatus::SIGNED->value])
-                ->selectRaw("SUM(status = ?) as transmitted", [InvoiceStatus::TRANSMITTED->value])
-                ->selectRaw("SUM(status = ?) as confirmed", [InvoiceStatus::CONFIRMED->value])
-                ->selectRaw("SUM(status IN (?, ?, ?) AND updated_at < ?) as stuck_pending", [
+                ->selectRaw('SUM(status = ?) as validated', [InvoiceStatus::VALIDATED->value])
+                ->selectRaw('SUM(status = ?) as signed', [InvoiceStatus::SIGNED->value])
+                ->selectRaw('SUM(status = ?) as transmitted', [InvoiceStatus::TRANSMITTED->value])
+                ->selectRaw('SUM(status = ?) as confirmed', [InvoiceStatus::CONFIRMED->value])
+                ->selectRaw('SUM(status IN (?, ?, ?) AND updated_at < ?) as stuck_pending', [
                     InvoiceStatus::PENDING_VALIDATION->value,
                     InvoiceStatus::PENDING_SIGNING->value,
                     InvoiceStatus::PENDING_TRANSMIT->value,
                     now()->subMinutes(5),
                 ])
-                ->selectRaw("SUM(CASE WHEN status = ? THEN payable_amount ELSE 0 END) as revenue_payable", [InvoiceStatus::CONFIRMED->value])
-                ->selectRaw("SUM(CASE WHEN status = ? THEN tax_inclusive_amount ELSE 0 END) as revenue_tax_inclusive", [InvoiceStatus::CONFIRMED->value])
+                ->selectRaw('SUM(CASE WHEN status = ? THEN payable_amount ELSE 0 END) as revenue_payable', [InvoiceStatus::CONFIRMED->value])
+                ->selectRaw('SUM(CASE WHEN status = ? THEN tax_inclusive_amount ELSE 0 END) as revenue_tax_inclusive', [InvoiceStatus::CONFIRMED->value])
                 ->first();
 
             return [
@@ -66,7 +66,7 @@ class DashboardService
     public function getRecentActivity(int $organizationId, int $limit = 5)
     {
         return ActivityLog::where('organization_id', $organizationId)
-            ->with('user')
+            ->with('user:id,uuid,first_name,last_name,email')
             ->latest()
             ->limit($limit)
             ->get();

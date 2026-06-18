@@ -2,14 +2,22 @@
 
 namespace App\Http\Requests\Product;
 
+use App\Models\Product;
 use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Support\Facades\Gate;
 use Illuminate\Validation\Rule;
 
 class StoreProductRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return true;
+        $product = $this->route('product');
+
+        if ($product instanceof Product) {
+            return Gate::allows('update', $product);
+        }
+
+        return Gate::allows('create', Product::class);
     }
 
     protected function prepareForValidation(): void
