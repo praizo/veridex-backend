@@ -7,6 +7,7 @@ use App\Events\TeamMemberRemoved;
 use App\Events\TeamMemberRoleChanged;
 use App\Models\Organization;
 use App\Models\User;
+use App\Services\ActivityLog\ActivityLogService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Password;
@@ -15,6 +16,10 @@ use Illuminate\Validation\ValidationException;
 
 class TeamService
 {
+    public function __construct(
+        private readonly ActivityLogService $activityLog,
+    ) {}
+
     public function listMembers(Organization $org): Collection
     {
         return $org->users()->withPivot('role')->get();
@@ -118,6 +123,19 @@ class TeamService
             requiresPasswordSetup: $requiresPasswordSetup,
         );
 
+        $this->activityLog->log(
+            $inviter,
+            'team.member.added',
+            $org,
+            "{$newUser->email} was added to {$org->name}.",
+            [
+                'member_id' => $newUser->uuid,
+                'member_email' => $newUser->email,
+                'role' => $role,
+                'was_created' => $wasCreated,
+            ],
+        );
+
         return ['user' => $newUser, 'was_created' => $wasCreated];
     }
 
@@ -146,6 +164,19 @@ class TeamService
                 oldRole: $targetRole,
                 newRole: $role,
             );
+
+            $this->activityLog->log(
+                $actor,
+                'team.member.role_changed',
+                $org,
+                "{$member->email} role changed from {$targetRole} to {$role}.",
+                [
+                    'member_id' => $member->uuid,
+                    'member_email' => $member->email,
+                    'old_role' => $targetRole,
+                    'new_role' => $role,
+                ],
+            );
         }
     }
 
@@ -169,6 +200,18 @@ class TeamService
             organizationName: $org->name,
             actorName: $actor->name,
             removedRole: $targetRole,
+        );
+
+        $this->activityLog->log(
+            $actor,
+            'team.member.removed',
+            $org,
+            "{$member->email} was removed from {$org->name}.",
+            [
+                'member_id' => $member->uuid,
+                'member_email' => $member->email,
+                'removed_role' => $targetRole,
+            ],
         );
     }
 

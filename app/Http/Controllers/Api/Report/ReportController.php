@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api\Report;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Report\InvoiceSummaryRequest;
 use App\Models\Organization;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Report\ReportService;
 use Illuminate\Http\JsonResponse;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -12,7 +13,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class ReportController extends Controller
 {
     public function __construct(
-        protected ReportService $reportService
+        protected ReportService $reportService,
+        private readonly ActivityLogService $activityLog,
     ) {}
 
     /**
@@ -52,6 +54,15 @@ class ReportController extends Controller
     {
         $orgId = $request->user()->current_organization_id;
         $filters = $request->filters();
+        $organization = Organization::findOrFail($orgId);
+
+        $this->activityLog->log(
+            $request->user(),
+            'report.invoices.exported',
+            $organization,
+            "Invoice report CSV exported for {$organization->name}.",
+            ['filters' => $filters],
+        );
 
         $response = new StreamedResponse(function () use ($orgId, $filters) {
             $handle = fopen('php://output', 'w');

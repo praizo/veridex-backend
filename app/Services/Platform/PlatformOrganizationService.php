@@ -55,7 +55,30 @@ class PlatformOrganizationService
 
     public function update(User $actor, Organization $organization, UpdatePlatformOrganizationDTO $dto): array
     {
-        $before = $this->auditSnapshot($organization->only(['platform_status', 'onboarding_status', 'verified_at', 'suspended_at', 'admin_notes']));
+        $auditedFields = [
+            'name',
+            'tin',
+            'email',
+            'telephone',
+            'street_name',
+            'city_name',
+            'postal_zone',
+            'country_code',
+            'business_description',
+            'service_id',
+            'nrs_business_id',
+            'platform_status',
+            'onboarding_status',
+            'verified_at',
+            'suspended_at',
+            'admin_notes',
+        ];
+
+        $before = $this->auditSnapshot($organization->only($auditedFields));
+
+        if ($dto->businessFields !== []) {
+            $organization->fill($dto->businessFields);
+        }
 
         if ($dto->hasPlatformStatus) {
             $organization->platform_status = $dto->platformStatus;
@@ -80,7 +103,7 @@ class PlatformOrganizationService
             actor: $actor,
             organization: $organization,
             before: $before,
-            after: $this->auditSnapshot($organization->only(['platform_status', 'onboarding_status', 'verified_at', 'suspended_at', 'admin_notes'])),
+            after: $this->auditSnapshot($organization->only($auditedFields)),
             reason: $dto->reason,
         );
 
@@ -91,11 +114,18 @@ class PlatformOrganizationService
     {
         $payload = [
             'id' => $organization->uuid,
+            'uuid' => $organization->uuid,
             'name' => $organization->name,
             'slug' => $organization->slug,
             'tin' => $organization->tin,
             'email' => $organization->email,
             'telephone' => $organization->telephone,
+            'street_name' => $organization->street_name,
+            'city_name' => $organization->city_name,
+            'postal_zone' => $organization->postal_zone,
+            'country_code' => $organization->country_code,
+            'business_description' => $organization->business_description,
+            'service_id' => $organization->service_id,
             'nrs_business_id' => $organization->nrs_business_id,
             'platform_status' => $organization->platform_status,
             'onboarding_status' => $organization->onboarding_status,

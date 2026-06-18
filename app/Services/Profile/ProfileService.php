@@ -5,13 +5,21 @@ namespace App\Services\Profile;
 use App\DTOs\Profile\UpdateProfileDTO;
 use App\Events\AccountSecurityAlertRequested;
 use App\Models\User;
+use App\Services\ActivityLog\ActivityLogService;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
 class ProfileService
 {
+    public function __construct(
+        private readonly ActivityLogService $activityLog,
+    ) {}
+
     public function updateProfile(User $user, UpdateProfileDTO $dto): User
     {
+        $before = $user->only(['first_name', 'last_name']);
+        $passwordChanged = false;
+
         if ($dto->password) {
             if (! Hash::check((string) $dto->currentPassword, $user->password)) {
                 throw ValidationException::withMessages([
@@ -22,11 +30,24 @@ class ProfileService
             $user->password = Hash::make($dto->password);
             $user->tokens()->delete();
             $this->dispatchPasswordChangedAlert($user);
+            $passwordChanged = true;
         }
 
         $user->first_name = $dto->firstName;
         $user->last_name = $dto->lastName;
         $user->save();
+
+        $this->activityLog->log(
+            $user,
+            'profile.updated',
+            $user,
+            $passwordChanged ? 'Profile and password updated.' : 'Profile updated.',
+            [
+                'before' => $before,
+                'after' => $user->only(['first_name', 'last_name']),
+                'password_changed' => $passwordChanged,
+            ],
+        );
 
         return $user->fresh();
     }

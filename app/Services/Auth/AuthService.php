@@ -10,6 +10,7 @@ use App\DTOs\Auth\VerifyOtpDTO;
 use App\DTOs\RequestContextDTO;
 use App\Events\AccountSecurityAlertRequested;
 use App\Models\User;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Operations\OperationalMetricService;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Hash;
@@ -23,6 +24,7 @@ class AuthService
     public function __construct(
         private readonly OtpService $otpService,
         private readonly OperationalMetricService $metrics,
+        private readonly ActivityLogService $activityLog,
     ) {}
 
     public function startRegistration(RegisterDTO $dto): array
@@ -173,6 +175,13 @@ class AuthService
 
                 $user->tokens()->delete();
                 $this->dispatchPasswordChangedAlert($user);
+                $this->activityLog->log(
+                    $user,
+                    'auth.password_reset',
+                    $user,
+                    'Password reset completed.',
+                    ['tokens_revoked' => true],
+                );
             }
         );
 

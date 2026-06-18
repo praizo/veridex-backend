@@ -9,6 +9,7 @@ use App\Http\Requests\Invoice\StoreInvoiceRequest;
 use App\Http\Requests\Invoice\UpdateInvoicePaymentStatusRequest;
 use App\Http\Resources\InvoiceResource;
 use App\Models\Invoice;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Invoice\IdempotencyService;
 use App\Services\Invoice\InvoicePaymentService;
 use App\Services\Invoice\InvoicePdfService;
@@ -28,6 +29,7 @@ class InvoiceController extends Controller
         protected InvoicePdfService $pdfService,
         protected IdempotencyService $idempotency,
         protected InvoicePaymentService $paymentService,
+        protected ActivityLogService $activityLog,
     ) {}
 
     /**
@@ -175,8 +177,18 @@ class InvoiceController extends Controller
     public function destroy(Invoice $invoice): JsonResponse
     {
         $this->authorize('delete', $invoice);
+        $invoiceNumber = $invoice->invoice_number;
+        $invoiceUuid = $invoice->uuid;
 
         $invoice->delete();
+
+        $this->activityLog->log(
+            request()->user(),
+            'invoice.deleted',
+            $invoice,
+            "Invoice #{$invoiceNumber} deleted.",
+            ['invoice_id' => $invoiceUuid],
+        );
 
         return response()->json([
             'message' => 'Invoice deleted successfully.',

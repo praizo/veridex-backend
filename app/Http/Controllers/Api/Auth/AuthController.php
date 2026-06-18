@@ -17,6 +17,7 @@ use App\Http\Requests\Auth\ResetPasswordRequest;
 use App\Http\Requests\Auth\VerifyOtpRequest;
 use App\Services\Auth\AuthService;
 use App\Services\Auth\AuthSessionService;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Traits\HasUserPayload;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -29,6 +30,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly AuthService $authService,
         private readonly AuthSessionService $sessionService,
+        private readonly ActivityLogService $activityLog,
     ) {}
 
     public function register(RegisterRequest $request): JsonResponse
@@ -61,6 +63,13 @@ class AuthController extends Controller
         );
 
         $this->sessionService->login($request, $user);
+
+        $this->activityLog->log(
+            $user,
+            $request->type === 'registration' ? 'auth.registered' : 'auth.login',
+            $user,
+            $request->type === 'registration' ? 'User completed registration.' : 'User signed in.',
+        );
 
         return response()->json([
             'user' => $this->userPayload($user),
@@ -99,6 +108,17 @@ class AuthController extends Controller
 
     public function logout(Request $request): JsonResponse
     {
+        $user = $request->user();
+
+        if ($user) {
+            $this->activityLog->log(
+                $user,
+                'auth.logout',
+                $user,
+                'User signed out.',
+            );
+        }
+
         $this->sessionService->clear($request);
 
         return response()

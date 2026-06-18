@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Models\Customer;
+use App\Models\ActivityLog;
 use App\Models\Invoice;
 use App\Models\NrsApiLog;
 use App\Models\Organization;
@@ -304,6 +305,167 @@ class PlatformAdminTest extends TestCase
             ])
             ->assertUnprocessable()
             ->assertJsonValidationErrors('suspended');
+    }
+
+    public function test_platform_users_can_be_filtered_by_organization_uuid(): void
+    {
+        $admin = $this->platformAdmin();
+        $first = $this->organization('First Tenant');
+        $second = $this->organization('Second Tenant');
+        $firstUser = User::factory()->create(['email' => 'first-member@example.com', 'current_organization_id' => $first->id]);
+        $secondUser = User::factory()->create(['email' => 'second-member@example.com', 'current_organization_id' => $second->id]);
+        $firstUser->organizations()->attach($first->id, ['role' => 'owner']);
+        $secondUser->organizations()->attach($second->id, ['role' => 'owner']);
+
+        $response = $this->actingAs($admin)
+            ->getJson("/api/v1/platform/users?organization_id={$first->uuid}")
+            ->assertOk();
+
+        $emails = collect($response->json('data'))->pluck('email');
+        $this->assertTrue($emails->contains('first-member@example.com'));
+        $this->assertFalse($emails->contains('second-member@example.com'));
+    }
+
+    public function test_platform_invoices_and_activity_can_be_filtered_by_public_ids(): void
+    {
+        $admin = $this->platformAdmin();
+        $first = $this->organization('First Tenant');
+        $second = $this->organization('Second Tenant');
+        $firstUser = User::factory()->create(['email' => 'first-member@example.com', 'current_organization_id' => $first->id]);
+        $secondUser = User::factory()->create(['email' => 'second-member@example.com', 'current_organization_id' => $second->id]);
+        $firstUser->organizations()->attach($first->id, ['role' => 'owner']);
+        $secondUser->organizations()->attach($second->id, ['role' => 'owner']);
+        $firstInvoice = $this->invoice($first, 'INV-FIRST', 1000);
+        $secondInvoice = $this->invoice($second, 'INV-SECOND', 2000);
+
+        ActivityLog::create([
+            'organization_id' => $first->id,
+            'user_id' => $firstUser->id,
+            'action' => 'invoice.created',
+            'description' => 'First activity',
+        ]);
+
+        ActivityLog::create([
+            'organization_id' => $second->id,
+            'user_id' => $secondUser->id,
+            'action' => 'invoice.created',
+            'description' => 'Second activity',
+        ]);
+
+        $orgInvoices = $this->actingAs($admin)
+            ->getJson("/api/v1/platform/invoices?organization_id={$first->uuid}")
+            ->assertOk()
+            ->json('data');
+        $this->assertContains($firstInvoice->uuid, collect($orgInvoices)->pluck('id'));
+        $this->assertNotContains($secondInvoice->uuid, collect($orgInvoices)->pluck('id'));
+
+        $userInvoices = $this->actingAs($admin)
+            ->getJson("/api/v1/platform/invoices?user_id={$firstUser->uuid}")
+            ->assertOk()
+            ->json('data');
+        $this->assertContains($firstInvoice->uuid, collect($userInvoices)->pluck('id'));
+        $this->assertNotContains($secondInvoice->uuid, collect($userInvoices)->pluck('id'));
+
+        $orgActivity = $this->actingAs($admin)
+            ->getJson("/api/v1/platform/activity-logs?organization_id={$first->uuid}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame(['First activity'], collect($orgActivity)->pluck('description')->all());
+
+        $userActivity = $this->actingAs($admin)
+            ->getJson("/api/v1/platform/activity-logs?user_id={$firstUser->uuid}")
+            ->assertOk()
+            ->json('data');
+        $this->assertSame(['First activity'], collect($userActivity)->pluck('description')->all());
+    }
+
+    public function test_platform_organization_profile_update_persists_allowed_fields_and_rejects_unsupported_fields(): void
+    {
+        $admin = $this->platformAdmin();
+        $organization = $this->organization('Editable Org');
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/platform/organizations/{$organization->uuid}", [
+                'name' => 'Updated Editable Org',
+                'tin' => '12345678-0001',
+                'email' => 'updated-org@example.com',
+                'telephone' => '+2348000000000',
+                'street_name' => '1 Platform Road',
+                'city_name' => 'Lagos',
+                'postal_zone' => '100001',
+                'country_code' => 'NG',
+                'business_description' => 'Updated by platform support.',
+                'service_id' => 'SVC-PLATFORM',
+                'nrs_business_id' => 'NRS-PLATFORM',
+                'platform_status' => 'active',
+                'onboarding_status' => 'review',
+                'verified' => true,
+                'admin_notes' => 'Verified during platform review.',
+                'reason' => 'Support ticket correction',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.name', 'Updated Editable Org')
+            ->assertJsonPath('data.service_id', 'SVC-PLATFORM')
+            ->assertJsonPath('data.onboarding_status', 'review');
+
+        $this->assertDatabaseHas('organizations', [
+            'id' => $organization->id,
+            'name' => 'Updated Editable Org',
+            'service_id' => 'SVC-PLATFORM',
+            'nrs_business_id' => 'NRS-PLATFORM',
+        ]);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'organization_id' => $organization->id,
+            'user_id' => $admin->id,
+            'action' => 'platform.organization.updated',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/platform/organizations/{$organization->uuid}", [
+                'deleted_at' => now()->toISOString(),
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('deleted_at');
+    }
+
+    public function test_platform_user_profile_update_persists_allowed_fields_and_rejects_unsupported_fields(): void
+    {
+        $admin = $this->platformAdmin();
+        $user = User::factory()->create([
+            'first_name' => 'Old',
+            'last_name' => 'Name',
+            'email_verified_at' => null,
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/platform/users/{$user->uuid}", [
+                'first_name' => 'New',
+                'last_name' => 'Name',
+                'email_verified' => true,
+                'suspended' => true,
+                'reason' => 'Platform support update',
+            ])
+            ->assertOk()
+            ->assertJsonPath('data.first_name', 'New')
+            ->assertJsonPath('data.last_name', 'Name');
+
+        $user->refresh();
+        $this->assertSame('New', $user->first_name);
+        $this->assertNotNull($user->email_verified_at);
+        $this->assertNotNull($user->suspended_at);
+
+        $this->assertDatabaseHas('activity_logs', [
+            'user_id' => $admin->id,
+            'action' => 'platform.user.updated',
+        ]);
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/platform/users/{$user->uuid}", [
+                'password' => 'not-allowed',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('password');
     }
 
     private function organization(string $name): Organization

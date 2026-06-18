@@ -204,7 +204,7 @@ class Phase2AuthenticationTest extends TestCase
             'password' => 'WrongPass1!',
         ])->assertStatus(429);
 
-        Notification::assertSentTo($user, VeridexAlertNotification::class);
+        Notification::assertSentToTimes($user, VeridexAlertNotification::class, 1);
     }
 
     public function test_login_otp_challenge_clears_existing_authenticated_session(): void
@@ -348,5 +348,7 @@ class Phase2AuthenticationTest extends TestCase
 
         $this->postJson('/api/v1/reset-password', $payload)->assertOk();
         $this->postJson('/api/v1/reset-password', $payload)->assertStatus(422);
+
+        Notification::assertSentToTimes($user, VeridexAlertNotification::class, 1);
     }
 }

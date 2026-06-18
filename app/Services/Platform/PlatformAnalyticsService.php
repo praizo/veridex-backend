@@ -134,13 +134,14 @@ class PlatformAnalyticsService
     private function topOrganizations(PlatformAnalyticsFiltersDTO $filters): array
     {
         return $this->invoiceBaseQuery($filters)
-            ->select('organizations.name as organization_name', DB::raw('count(*) as total_count'), DB::raw('sum(payable_amount) as total_value'))
+            ->select('organizations.uuid as organization_id', 'organizations.name as organization_name', DB::raw('count(*) as total_count'), DB::raw('sum(payable_amount) as total_value'))
             ->join('organizations', 'organizations.id', '=', 'invoices.organization_id')
-            ->groupBy('organizations.id', 'organizations.name')
+            ->groupBy('organizations.id', 'organizations.uuid', 'organizations.name')
             ->orderByDesc('total_value')
             ->limit(10)
             ->get()
             ->map(fn ($row) => [
+                'organization_id' => $row->organization_id,
                 'organization_name' => $row->organization_name,
                 'total_count' => (int) $row->total_count,
                 'total_value' => (float) $row->total_value,

@@ -19,6 +19,7 @@ class ListPlatformUsersRequest extends FormRequest
             'per_page' => ['sometimes', 'integer', 'min:1', 'max:100'],
             'search' => ['sometimes', 'nullable', 'string', 'max:255'],
             'status' => ['sometimes', 'nullable', Rule::in(['active', 'suspended', 'unverified'])],
+            'organization_id' => ['sometimes', 'nullable', 'string', 'max:64'],
             'sort' => ['sometimes', 'nullable', 'string', 'max:100'],
             'direction' => ['sometimes', 'nullable', Rule::in(['asc', 'desc'])],
         ];

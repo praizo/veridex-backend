@@ -5,6 +5,7 @@ namespace App\Services\Platform;
 use App\DTOs\Platform\PlatformListFiltersDTO;
 use App\DTOs\Platform\UpdatePlatformUserDTO;
 use App\Events\PlatformUserUpdated;
+use App\Models\Organization;
 use App\Models\PlatformAdmin;
 use App\Models\User;
 use App\Services\Platform\Concerns\PaginatesPlatformResults;
@@ -35,6 +36,14 @@ class PlatformUserService
                     default => null,
                 };
             });
+
+        if ($filters->organizationId !== null) {
+            $organizationId = $this->resolveOrganizationId($filters->organizationId);
+
+            $organizationId
+                ? $query->whereHas('organizations', fn (Builder $organizationQuery) => $organizationQuery->whereKey($organizationId))
+                : $query->whereRaw('1 = 0');
+        }
 
         if ($filters->sort === 'platform_role') {
             $query
@@ -75,6 +84,14 @@ class PlatformUserService
         $user->loadMissing('platformAdmin');
         $before = $this->userAuditSnapshot($user);
 
+        if ($dto->hasFirstName) {
+            $user->first_name = $dto->firstName;
+        }
+
+        if ($dto->hasLastName) {
+            $user->last_name = $dto->lastName;
+        }
+
         if ($dto->hasPlatformRole) {
             $this->updatePlatformRole($actor, $user, $dto->platformRole);
         }
@@ -104,6 +121,7 @@ class PlatformUserService
     {
         $payload = [
             'id' => $user->uuid,
+            'uuid' => $user->uuid,
             'first_name' => $user->first_name,
             'last_name' => $user->last_name,
             'name' => $user->name,
@@ -138,10 +156,19 @@ class PlatformUserService
 
         return [
             'id' => $organization->uuid,
+            'uuid' => $organization->uuid,
             'name' => $organization->name,
             'tin' => $organization->tin,
             'email' => $organization->email,
         ];
+    }
+
+    private function resolveOrganizationId(string $value): ?int
+    {
+        return Organization::query()
+            ->where('uuid', $value)
+            ->orWhere('id', $value)
+            ->value('id');
     }
 
     private function updatePlatformRole(User $actor, User $user, ?string $role): void
@@ -188,6 +215,8 @@ class PlatformUserService
     {
         return $this->auditSnapshot([
             'platform_role' => $user->platform_role,
+            'first_name' => $user->first_name,
+            'last_name' => $user->last_name,
             'suspended_at' => $user->suspended_at,
             'email_verified_at' => $user->email_verified_at,
         ]);

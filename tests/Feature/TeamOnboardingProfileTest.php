@@ -273,7 +273,7 @@ class TeamOnboardingProfileTest extends TestCase
             ->assertJsonPath('message', 'Profile and password updated successfully.');
 
         $this->assertTrue(Hash::check('NewPassword1!', $user->fresh()->password));
-        Notification::assertSentTo($user, VeridexAlertNotification::class);
+        Notification::assertSentToTimes($user, VeridexAlertNotification::class, 1);
     }
 
     public function test_profile_password_change_requires_current_password(): void

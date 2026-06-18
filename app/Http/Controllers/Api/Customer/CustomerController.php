@@ -7,6 +7,8 @@ use App\Http\Requests\Customer\StoreCustomerRequest;
 use App\Http\Requests\Customer\UpdateCustomerRequest;
 use App\Http\Resources\CustomerResource;
 use App\Models\Customer;
+use App\Models\Organization;
+use App\Services\ActivityLog\ActivityLogService;
 use App\Services\Customer\CustomerService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -15,7 +17,8 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 class CustomerController extends Controller
 {
     public function __construct(
-        protected CustomerService $customerService
+        protected CustomerService $customerService,
+        private readonly ActivityLogService $activityLog,
     ) {}
 
     public function index(Request $request): JsonResponse
@@ -80,6 +83,14 @@ class CustomerController extends Controller
         });
 
         $date = now()->format('Y_m_d_His');
+        $organization = Organization::findOrFail($orgId);
+
+        $this->activityLog->log(
+            $request->user(),
+            'customer.exported',
+            $organization,
+            "Customer CSV exported for {$organization->name}.",
+        );
 
         $response->headers->set('Content-Type', 'text/csv');
         $response->headers->set('Content-Disposition', 'attachment; filename="customers_export_'.$date.'.csv"');
@@ -92,6 +103,14 @@ class CustomerController extends Controller
         $customer = $this->customerService->create(
             $request->toServiceData(),
             $request->user()->current_organization_id
+        );
+
+        $this->activityLog->log(
+            $request->user(),
+            'customer.created',
+            $customer,
+            "Customer {$customer->name} created.",
+            ['customer_id' => $customer->uuid],
         );
 
         return response()->json([
@@ -109,19 +128,43 @@ class CustomerController extends Controller
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse
     {
+        $before = $customer->only(array_keys($request->toServiceData()));
         $this->customerService->update($customer, $request->toServiceData());
+        $customer = $customer->fresh();
+
+        $this->activityLog->log(
+            $request->user(),
+            'customer.updated',
+            $customer,
+            "Customer {$customer->name} updated.",
+            [
+                'customer_id' => $customer->uuid,
+                'before' => $before,
+                'after' => $customer->only(array_keys($request->toServiceData())),
+            ],
+        );
 
         return response()->json([
             'message' => 'Customer updated successfully.',
-            'data' => new CustomerResource($customer->fresh()),
+            'data' => new CustomerResource($customer),
         ]);
     }
 
     public function destroy(Request $request, Customer $customer): JsonResponse
     {
         $this->authorize('delete', $customer);
+        $customerName = $customer->name;
+        $customerUuid = $customer->uuid;
 
         $customer->delete();
+
+        $this->activityLog->log(
+            $request->user(),
+            'customer.deleted',
+            $customer,
+            "Customer {$customerName} deleted.",
+            ['customer_id' => $customerUuid],
+        );
 
         return response()->json([
             'message' => 'Customer deleted successfully.',
