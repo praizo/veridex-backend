@@ -11,9 +11,11 @@ use Illuminate\Support\Facades\Log;
  */
 class NrsResourceService
 {
-    private const FRESH_TTL_SECONDS = 86400;
+    private const DEFAULT_FRESH_TTL_SECONDS = 86400;
 
-    private const STALE_TTL_DAYS = 30;
+    private const STABLE_FRESH_TTL_DAYS = 30;
+
+    private const STALE_TTL_DAYS = 180;
 
     public function __construct(
         protected NrsClient $nrsClient
@@ -134,7 +136,7 @@ class NrsResourceService
                 return $this->staleResource($staleKey);
             }
 
-            Cache::put($cacheKey, $result, self::FRESH_TTL_SECONDS);
+            Cache::put($cacheKey, $result, $this->freshTtl($cacheKey));
             Cache::put($staleKey, $result, now()->addDays(self::STALE_TTL_DAYS));
 
             return $result;
@@ -170,5 +172,12 @@ class NrsResourceService
     protected function staleCacheKey(string $cacheKey): string
     {
         return "{$cacheKey}:stale";
+    }
+
+    protected function freshTtl(string $cacheKey): int|\DateTimeInterface
+    {
+        return in_array($cacheKey, ['nrs_countries', 'nrs_currencies'], true)
+            ? now()->addDays(self::STABLE_FRESH_TTL_DAYS)
+            : self::DEFAULT_FRESH_TTL_SECONDS;
     }
 }
