@@ -44,6 +44,12 @@ class InvitePlatformSuperAdmin extends Command
             ]);
             $created = true;
         } else {
+            if ($user->current_organization_id || $user->organizations()->exists()) {
+                $this->error('Organization users cannot be granted platform super admin access.');
+
+                return self::FAILURE;
+            }
+
             $updates = [];
 
             if ($this->option('first-name')) {

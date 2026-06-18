@@ -36,6 +36,12 @@ class GrantPlatformSuperAdmin extends Command
             return self::SUCCESS;
         }
 
+        if ($user->current_organization_id || $user->organizations()->exists()) {
+            $this->error('Organization users cannot be granted platform super admin access.');
+
+            return self::FAILURE;
+        }
+
         $user->platformAdmin()->updateOrCreate(
             ['user_id' => $user->id],
             [

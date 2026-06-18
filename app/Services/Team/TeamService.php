@@ -71,6 +71,12 @@ class TeamService
             ]);
         }
 
+        if ($newUser?->isSuperAdmin()) {
+            throw ValidationException::withMessages([
+                'email' => ['Platform super admins cannot be added to an organization.'],
+            ]);
+        }
+
         if (! $newUser) {
             $newUser = User::create([
                 'first_name' => $firstName,

@@ -105,6 +105,12 @@ class PlatformUserService
             return;
         }
 
+        if ($user->current_organization_id || $user->organizations()->exists()) {
+            throw ValidationException::withMessages([
+                'platform_role' => ['Organization users cannot be granted platform super admin access.'],
+            ]);
+        }
+
         PlatformAdmin::updateOrCreate(
             ['user_id' => $user->id],
             [

@@ -7,10 +7,12 @@ use App\Models\Invoice;
 use App\Models\Organization;
 use App\Models\User;
 use App\Notifications\ResetPasswordNotification;
+use App\Services\Team\TeamService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class PlatformAdminTest extends TestCase
@@ -136,6 +138,83 @@ class PlatformAdminTest extends TestCase
         ]);
 
         Notification::assertSentTo($user, ResetPasswordNotification::class);
+    }
+
+    public function test_platform_api_rejects_granting_super_admin_to_organization_user(): void
+    {
+        $admin = $this->platformAdmin();
+        $organization = $this->organization('Tenant Org');
+        $tenantUser = User::factory()->create(['current_organization_id' => $organization->id]);
+        $tenantUser->organizations()->attach($organization->id, ['role' => 'owner']);
+
+        $this->actingAs($admin)
+            ->patchJson("/api/v1/platform/users/{$tenantUser->uuid}", [
+                'platform_role' => 'super_admin',
+                'reason' => 'Incorrect elevation',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('platform_role');
+
+        $this->assertFalse($tenantUser->fresh('platformAdmin')->isSuperAdmin());
+    }
+
+    public function test_platform_commands_reject_granting_super_admin_to_organization_user(): void
+    {
+        Notification::fake();
+
+        $organization = $this->organization('Tenant Org');
+        $tenantUser = User::factory()->create([
+            'email' => 'tenant@example.com',
+            'current_organization_id' => $organization->id,
+        ]);
+        $tenantUser->organizations()->attach($organization->id, ['role' => 'owner']);
+
+        $grantExitCode = Artisan::call('platform:super-admin', [
+            'email' => $tenantUser->email,
+        ]);
+        $inviteExitCode = Artisan::call('platform:invite-super-admin', [
+            'email' => $tenantUser->email,
+        ]);
+
+        $this->assertSame(1, $grantExitCode);
+        $this->assertSame(1, $inviteExitCode);
+        $this->assertFalse($tenantUser->fresh('platformAdmin')->isSuperAdmin());
+        Notification::assertNothingSent();
+    }
+
+    public function test_super_admin_cannot_become_organization_user(): void
+    {
+        $organization = $this->organization('Tenant Org');
+        $owner = User::factory()->create(['current_organization_id' => $organization->id]);
+        $owner->organizations()->attach($organization->id, ['role' => 'owner']);
+        $admin = $this->platformAdmin(['email' => 'ops@example.com']);
+
+        $this->expectException(ValidationException::class);
+
+        app(TeamService::class)->addMember(
+            org: $organization,
+            email: $admin->email,
+            role: 'admin',
+            firstName: null,
+            lastName: null,
+            inviter: $owner,
+            frontendBaseUrl: 'https://dashboard.veridex.ng',
+        );
+    }
+
+    public function test_super_admin_is_not_subject_to_business_onboarding(): void
+    {
+        $admin = $this->platformAdmin(['email' => 'ops@example.com']);
+
+        $this->actingAs($admin)
+            ->postJson('/api/v1/onboarding/complete', [])
+            ->assertOk()
+            ->assertJsonPath('message', 'Platform super admins do not require business onboarding.')
+            ->assertJsonPath('user.platform_role', 'super_admin')
+            ->assertJsonPath('user.current_organization_id', null);
+
+        $this->assertNull($admin->fresh()->current_organization_id);
+        $this->assertSame(0, $admin->fresh()->organizations()->count());
     }
 
     public function test_platform_revoke_command_unsets_super_admin_without_deleting_user(): void

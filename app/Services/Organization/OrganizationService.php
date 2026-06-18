@@ -10,6 +10,10 @@ class OrganizationService
 {
     public function switch(User $user, int $organizationId): User
     {
+        if ($user->isSuperAdmin()) {
+            throw new AuthorizationException('Platform super admins cannot switch into an organization.');
+        }
+
         if (! $user->organizations()->where('organization_id', $organizationId)->exists()) {
             throw new AuthorizationException('Unauthorized access to organization');
         }

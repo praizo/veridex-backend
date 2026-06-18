@@ -30,6 +30,13 @@ class OnboardingController extends Controller
     {
         $user = $request->user();
 
+        if ($user->isSuperAdmin()) {
+            return response()->json([
+                'message' => 'Platform super admins do not require business onboarding.',
+                'user' => $this->userPayload($user),
+            ]);
+        }
+
         if ($user->hasCompletedOnboarding()) {
             return response()->json([
                 'message' => 'Onboarding already completed.',

@@ -13,6 +13,10 @@ class OnboardingRequest extends FormRequest
 
     public function rules(): array
     {
+        if ($this->user()?->isSuperAdmin()) {
+            return [];
+        }
+
         return [
             'organization_name' => ['required', 'string', 'max:255'],
             'tin' => ['required', 'string', 'max:20'],
