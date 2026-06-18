@@ -38,7 +38,7 @@ return [
     'nrs' => [
         'webhook_api_key' => env('NRS_WEBHOOK_API_KEY'),
         'webhook_secret' => env('NRS_WEBHOOK_SECRET'),
-        'webhook_verify_signature' => env('NRS_WEBHOOK_VERIFY_SIGNATURE', false),
+        'webhook_verify_signature' => env('NRS_WEBHOOK_VERIFY_SIGNATURE', true),
         'webhook_timestamp_tolerance' => env('NRS_WEBHOOK_TIMESTAMP_TOLERANCE', 300), // 5 minutes
     ],
 

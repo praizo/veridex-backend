@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -9,7 +10,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class Product extends Model
 {
-    use HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids, SoftDeletes;
+    use BelongsToOrganization, HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids, SoftDeletes;
 
     public function uniqueIds(): array
     {

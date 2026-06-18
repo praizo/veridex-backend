@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\Product;
 use App\Services\Nrs\NrsClient;
+use Illuminate\Support\Facades\Cache;
 
 class DashboardService
 {
@@ -19,42 +20,44 @@ class DashboardService
 
     /**
      * Get summary statistics for the organization.
+     *
+     * Uses a single aggregation query for invoice stats and short-lived
+     * caching (30s) to avoid 10+ queries on every dashboard load.
      */
     public function getStats(int $organizationId): array
     {
-        return [
-            'total_invoices' => Invoice::where('organization_id', $organizationId)->count(),
-            'validated' => Invoice::where('organization_id', $organizationId)
-                ->where('status', InvoiceStatus::VALIDATED)
-                ->count(),
-            'signed' => Invoice::where('organization_id', $organizationId)
-                ->where('status', InvoiceStatus::SIGNED)
-                ->count(),
-            'transmitted' => Invoice::where('organization_id', $organizationId)
-                ->where('status', InvoiceStatus::TRANSMITTED)
-                ->count(),
-            'confirmed' => Invoice::where('organization_id', $organizationId)
-                ->where('status', InvoiceStatus::CONFIRMED)
-                ->count(),
-            'stuck_pending' => Invoice::where('organization_id', $organizationId)
-                ->whereIn('status', [
-                    InvoiceStatus::PENDING_VALIDATION,
-                    InvoiceStatus::PENDING_SIGNING,
-                    InvoiceStatus::PENDING_TRANSMIT,
+        return Cache::remember("dashboard:stats:{$organizationId}", 30, function () use ($organizationId) {
+            $invoiceStats = Invoice::where('organization_id', $organizationId)
+                ->selectRaw('COUNT(*) as total_invoices')
+                ->selectRaw("SUM(status = ?) as validated", [InvoiceStatus::VALIDATED->value])
+                ->selectRaw("SUM(status = ?) as signed", [InvoiceStatus::SIGNED->value])
+                ->selectRaw("SUM(status = ?) as transmitted", [InvoiceStatus::TRANSMITTED->value])
+                ->selectRaw("SUM(status = ?) as confirmed", [InvoiceStatus::CONFIRMED->value])
+                ->selectRaw("SUM(status IN (?, ?, ?) AND updated_at < ?) as stuck_pending", [
+                    InvoiceStatus::PENDING_VALIDATION->value,
+                    InvoiceStatus::PENDING_SIGNING->value,
+                    InvoiceStatus::PENDING_TRANSMIT->value,
+                    now()->subMinutes(5),
                 ])
-                ->where('updated_at', '<', now()->subMinutes(5))
-                ->count(),
-            'revenue' => [
-                'payable_amount_sum' => Invoice::where('organization_id', $organizationId)
-                    ->where('status', InvoiceStatus::CONFIRMED)
-                    ->sum('payable_amount'),
-                'tax_inclusive_amount_sum' => Invoice::where('organization_id', $organizationId)
-                    ->where('status', InvoiceStatus::CONFIRMED)
-                    ->sum('tax_inclusive_amount'),
-            ],
-            'customers' => Customer::where('organization_id', $organizationId)->count(),
-            'products' => Product::where('organization_id', $organizationId)->count(),
-        ];
+                ->selectRaw("SUM(CASE WHEN status = ? THEN payable_amount ELSE 0 END) as revenue_payable", [InvoiceStatus::CONFIRMED->value])
+                ->selectRaw("SUM(CASE WHEN status = ? THEN tax_inclusive_amount ELSE 0 END) as revenue_tax_inclusive", [InvoiceStatus::CONFIRMED->value])
+                ->first();
+
+            return [
+                'total_invoices' => (int) $invoiceStats->total_invoices,
+                'validated' => (int) $invoiceStats->validated,
+                'signed' => (int) $invoiceStats->signed,
+                'transmitted' => (int) $invoiceStats->transmitted,
+                'confirmed' => (int) $invoiceStats->confirmed,
+                'stuck_pending' => (int) $invoiceStats->stuck_pending,
+                'revenue' => [
+                    'payable_amount_sum' => (float) $invoiceStats->revenue_payable,
+                    'tax_inclusive_amount_sum' => (float) $invoiceStats->revenue_tax_inclusive,
+                ],
+                'customers' => Customer::where('organization_id', $organizationId)->count(),
+                'products' => Product::where('organization_id', $organizationId)->count(),
+            ];
+        });
     }
 
     /**

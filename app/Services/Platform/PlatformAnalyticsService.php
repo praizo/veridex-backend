@@ -57,94 +57,154 @@ class PlatformAnalyticsService
         ];
     }
 
+    /**
+     * Analytics data using DB-level aggregation instead of loading full tables into PHP.
+     *
+     * Previous implementation used ->get() on every table then grouped/mapped in PHP.
+     * At scale (100k+ invoices, growing NRS logs) this would OOM or timeout.
+     * Now all grouping and aggregation happens in SQL.
+     */
     public function analytics(PlatformAnalyticsFiltersDTO $filters): array
     {
-        $invoiceQuery = Invoice::query()
-            ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('issue_date', '>=', $filters->dateFrom))
-            ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('issue_date', '<=', $filters->dateTo))
-            ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId));
-
-        $invoices = (clone $invoiceQuery)->get(['organization_id', 'status', 'payable_amount', 'issue_date']);
-
         return [
-            'invoice_volume' => $invoices
-                ->groupBy(fn (Invoice $invoice) => optional($invoice->issue_date)->format('Y-m') ?? 'undated')
-                ->map(fn ($items, string $period) => ['period' => $period, 'total_count' => $items->count()])
-                ->values(),
-            'invoice_value' => $invoices
-                ->groupBy(fn (Invoice $invoice) => optional($invoice->issue_date)->format('Y-m') ?? 'undated')
-                ->map(fn ($items, string $period) => ['period' => $period, 'total_value' => (float) $items->sum('payable_amount')])
-                ->values(),
+            'invoice_volume' => $this->invoiceVolume($filters),
+            'invoice_value' => $this->invoiceValue($filters),
             'organization_onboarding' => $this->organizationTrend($filters),
-            'invoice_status_breakdown' => $invoices
-                ->groupBy(fn (Invoice $invoice) => is_string($invoice->status) ? $invoice->status : $invoice->status->value)
-                ->map(fn ($items, string $status) => ['status' => $status, 'total_count' => $items->count(), 'total_value' => (float) $items->sum('payable_amount')])
-                ->values(),
-            'top_organizations' => (clone $invoiceQuery)
-                ->select('organizations.name as organization_name', DB::raw('count(*) as total_count'), DB::raw('sum(payable_amount) as total_value'))
-                ->join('organizations', 'organizations.id', '=', 'invoices.organization_id')
-                ->groupBy('organizations.id', 'organizations.name')
-                ->orderByDesc('total_value')
-                ->limit(10)
-                ->get()
-                ->map(fn ($row) => [
-                    'organization_name' => $row->organization_name,
-                    'total_count' => (int) $row->total_count,
-                    'total_value' => (float) $row->total_value,
-                ]),
+            'invoice_status_breakdown' => $this->invoiceStatusBreakdown($filters),
+            'top_organizations' => $this->topOrganizations($filters),
             'nrs_trend' => $this->nrsTrend($filters),
             'user_growth' => $this->userGrowth($filters),
             'activity_volume' => $this->activityTrend($filters),
         ];
     }
 
-    private function organizationTrend(PlatformAnalyticsFiltersDTO $filters)
+    private function invoiceBaseQuery(PlatformAnalyticsFiltersDTO $filters): Builder
+    {
+        return Invoice::query()
+            ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('issue_date', '>=', $filters->dateFrom))
+            ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('issue_date', '<=', $filters->dateTo))
+            ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId));
+    }
+
+    private function invoiceVolume(PlatformAnalyticsFiltersDTO $filters): array
+    {
+        return $this->invoiceBaseQuery($filters)
+            ->selectRaw("DATE_FORMAT(issue_date, '%Y-%m') as period, COUNT(*) as total_count")
+            ->whereNotNull('issue_date')
+            ->groupByRaw("DATE_FORMAT(issue_date, '%Y-%m')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
+            ->values()
+            ->all();
+    }
+
+    private function invoiceValue(PlatformAnalyticsFiltersDTO $filters): array
+    {
+        return $this->invoiceBaseQuery($filters)
+            ->selectRaw("DATE_FORMAT(issue_date, '%Y-%m') as period, SUM(payable_amount) as total_value")
+            ->whereNotNull('issue_date')
+            ->groupByRaw("DATE_FORMAT(issue_date, '%Y-%m')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total_value' => (float) $row->total_value])
+            ->values()
+            ->all();
+    }
+
+    private function invoiceStatusBreakdown(PlatformAnalyticsFiltersDTO $filters): array
+    {
+        return $this->invoiceBaseQuery($filters)
+            ->selectRaw('status, COUNT(*) as total_count, SUM(payable_amount) as total_value')
+            ->groupBy('status')
+            ->get()
+            ->map(fn ($row) => [
+                'status' => $row->status,
+                'total_count' => (int) $row->total_count,
+                'total_value' => (float) $row->total_value,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function topOrganizations(PlatformAnalyticsFiltersDTO $filters): array
+    {
+        return $this->invoiceBaseQuery($filters)
+            ->select('organizations.name as organization_name', DB::raw('count(*) as total_count'), DB::raw('sum(payable_amount) as total_value'))
+            ->join('organizations', 'organizations.id', '=', 'invoices.organization_id')
+            ->groupBy('organizations.id', 'organizations.name')
+            ->orderByDesc('total_value')
+            ->limit(10)
+            ->get()
+            ->map(fn ($row) => [
+                'organization_name' => $row->organization_name,
+                'total_count' => (int) $row->total_count,
+                'total_value' => (float) $row->total_value,
+            ])
+            ->all();
+    }
+
+    private function organizationTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
         return Organization::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
-            ->get(['created_at'])
-            ->groupBy(fn (Organization $organization) => $organization->created_at->format('Y-m'))
-            ->map(fn ($items, string $period) => ['period' => $period, 'total_count' => $items->count()])
-            ->values();
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period, COUNT(*) as total_count")
+            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
+            ->values()
+            ->all();
     }
 
-    private function nrsTrend(PlatformAnalyticsFiltersDTO $filters)
+    private function nrsTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
         return NrsApiLog::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
             ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId))
-            ->get(['status_code', 'created_at'])
-            ->groupBy(fn (NrsApiLog $log) => $log->created_at->format('Y-m-d'))
-            ->map(fn ($items, string $period) => [
-                'period' => $period,
-                'success' => $items->where('status_code', '<', 400)->count(),
-                'failed' => $items->where('status_code', '>=', 400)->count(),
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m-%d') as period")
+            ->selectRaw('SUM(status_code < 400) as success')
+            ->selectRaw('SUM(status_code >= 400) as failed')
+            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m-%d')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => [
+                'period' => $row->period,
+                'success' => (int) $row->success,
+                'failed' => (int) $row->failed,
             ])
-            ->values();
+            ->values()
+            ->all();
     }
 
-    private function userGrowth(PlatformAnalyticsFiltersDTO $filters)
+    private function userGrowth(PlatformAnalyticsFiltersDTO $filters): array
     {
         return User::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
-            ->get(['created_at'])
-            ->groupBy(fn (User $user) => $user->created_at->format('Y-m'))
-            ->map(fn ($items, string $period) => ['period' => $period, 'total_count' => $items->count()])
-            ->values();
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m') as period, COUNT(*) as total_count")
+            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
+            ->values()
+            ->all();
     }
 
-    private function activityTrend(PlatformAnalyticsFiltersDTO $filters)
+    private function activityTrend(PlatformAnalyticsFiltersDTO $filters): array
     {
         return ActivityLog::query()
             ->when($filters->dateFrom, fn (Builder $query) => $query->whereDate('created_at', '>=', $filters->dateFrom))
             ->when($filters->dateTo, fn (Builder $query) => $query->whereDate('created_at', '<=', $filters->dateTo))
             ->when($filters->organizationId, fn (Builder $query) => $query->where('organization_id', $filters->organizationId))
-            ->get(['created_at'])
-            ->groupBy(fn (ActivityLog $log) => $log->created_at->format('Y-m-d'))
-            ->map(fn ($items, string $period) => ['period' => $period, 'total_count' => $items->count()])
-            ->values();
+            ->selectRaw("DATE_FORMAT(created_at, '%Y-%m-%d') as period, COUNT(*) as total_count")
+            ->groupByRaw("DATE_FORMAT(created_at, '%Y-%m-%d')")
+            ->orderBy('period')
+            ->get()
+            ->map(fn ($row) => ['period' => $row->period, 'total_count' => (int) $row->total_count])
+            ->values()
+            ->all();
     }
 }

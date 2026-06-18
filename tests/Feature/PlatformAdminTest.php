@@ -100,7 +100,6 @@ class PlatformAdminTest extends TestCase
     {
         $user = User::factory()->create([
             'email' => 'suspended@example.com',
-            'password' => 'password',
             'suspended_at' => now(),
         ]);
 

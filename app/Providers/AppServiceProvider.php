@@ -18,6 +18,7 @@ use App\Listeners\SendTeamMemberRemovedEmail;
 use App\Listeners\SendTeamRoleChangedEmail;
 use App\Listeners\WriteInvoicePaymentActivityLog;
 use App\Listeners\WritePlatformActivityLog;
+use App\Support\Tenancy\TenantContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Event;
@@ -32,6 +33,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
+        $this->app->scoped(TenantContext::class);
+
         if (class_exists(\Laravel\Telescope\TelescopeServiceProvider::class)) {
             $this->app->register(\Laravel\Telescope\TelescopeServiceProvider::class);
             $this->app->register(TelescopeServiceProvider::class);

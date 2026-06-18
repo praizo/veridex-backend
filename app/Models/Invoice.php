@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\InvoiceStatus;
 use App\Enums\PaymentStatus;
+use App\Models\Concerns\BelongsToOrganization;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -11,7 +12,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Invoice extends Model
 {
-    use HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+    use BelongsToOrganization, HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
 
     public function uniqueIds(): array
     {
@@ -46,8 +47,10 @@ class Invoice extends Model
             $organization = $invoice->organization ?? Organization::find($invoice->organization_id);
             if ($organization && $invoice->invoice_number && $invoice->issue_date) {
                 // NRS rules: all uppercase, no spaces, only '-' special character allowed
-                $serviceId = '0D2153BF';
-                $tinBranch = '99999999-0001';
+                $serviceId = $organization->service_id ?? config('nrs.default_service_id', '0D2153BF');
+                $tinBranch = $organization->tin
+                    ? "{$organization->tin}-0001"
+                    : '99999999-0001';
                 $dateStamp = $invoice->issue_date->format('Ymd');
                 $irn = "{$tinBranch}-{$invoice->invoice_number}-{$serviceId}-{$dateStamp}";
                 $invoice->irn = strtoupper(preg_replace('/[^A-Za-z0-9\-]/', '', $irn));
