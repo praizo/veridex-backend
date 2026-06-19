@@ -2,8 +2,8 @@
 
 namespace Tests\Feature;
 
-use App\Models\Customer;
 use App\Models\ActivityLog;
+use App\Models\Customer;
 use App\Models\Invoice;
 use App\Models\NrsApiLog;
 use App\Models\Organization;

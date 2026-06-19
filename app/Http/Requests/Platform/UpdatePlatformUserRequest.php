@@ -3,8 +3,8 @@
 namespace App\Http\Requests\Platform;
 
 use Illuminate\Foundation\Http\FormRequest;
-use Illuminate\Validation\Validator;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class UpdatePlatformUserRequest extends FormRequest
 {
