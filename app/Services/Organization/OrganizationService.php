@@ -27,7 +27,7 @@ class OrganizationService
         $user->update(['current_organization_id' => $organizationId]);
         $organization = Organization::findOrFail($organizationId);
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $user,
             'organization.switched',
             $organization,
@@ -52,7 +52,7 @@ class OrganizationService
         $before = $org->only(array_keys($data));
         $org->update($data);
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $user,
             'organization.updated',
             $org,

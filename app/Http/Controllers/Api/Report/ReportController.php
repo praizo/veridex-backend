@@ -56,7 +56,7 @@ class ReportController extends Controller
         $filters = $request->filters();
         $organization = Organization::findOrFail($orgId);
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'report.invoices.exported',
             $organization,

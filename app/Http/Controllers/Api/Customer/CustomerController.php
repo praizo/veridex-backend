@@ -85,7 +85,7 @@ class CustomerController extends Controller
         $date = now()->format('Y_m_d_His');
         $organization = Organization::findOrFail($orgId);
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'customer.exported',
             $organization,
@@ -105,7 +105,7 @@ class CustomerController extends Controller
             $request->user()->current_organization_id
         );
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'customer.created',
             $customer,
@@ -132,7 +132,7 @@ class CustomerController extends Controller
         $this->customerService->update($customer, $request->toServiceData());
         $customer = $customer->fresh();
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'customer.updated',
             $customer,
@@ -158,7 +158,7 @@ class CustomerController extends Controller
 
         $customer->delete();
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'customer.deleted',
             $customer,

@@ -37,7 +37,7 @@ class ProfileService
         $user->last_name = $dto->lastName;
         $user->save();
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $user,
             'profile.updated',
             $user,

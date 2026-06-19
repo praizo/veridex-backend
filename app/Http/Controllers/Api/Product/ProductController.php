@@ -37,7 +37,7 @@ class ProductController extends Controller
             $request->user()->current_organization_id
         );
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'product.created',
             $product,
@@ -64,7 +64,7 @@ class ProductController extends Controller
         $this->productService->update($product, $request->toServiceData());
         $product = $product->fresh();
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'product.updated',
             $product,
@@ -90,7 +90,7 @@ class ProductController extends Controller
 
         $product->delete();
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $request->user(),
             'product.deleted',
             $product,

@@ -9,10 +9,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
 
 class Invoice extends Model
 {
-    use BelongsToOrganization, HasFactory, \Illuminate\Database\Eloquent\Concerns\HasUuids;
+    use BelongsToOrganization, HasFactory, HasUuids;
 
     public function uniqueIds(): array
     {
@@ -178,7 +179,7 @@ class Invoice extends Model
                 'postal_zone' => $this->customer->postal_zone,
                 'country_code' => $this->customer->country_code,
             ] : null,
-            'line_snapshot' => $this->lines->map(fn ($line) => $line->only([
+            'line_snapshot' => $this->lines->map(fn($line) => $line->only([
                 'line_id',
                 'invoiced_quantity',
                 'line_extension_amount',
@@ -194,7 +195,7 @@ class Invoice extends Model
                 'tax_percent',
                 'tax_scheme_id',
             ]))->values()->all(),
-            'tax_snapshot' => $this->taxTotals->map(fn ($taxTotal) => $taxTotal->only([
+            'tax_snapshot' => $this->taxTotals->map(fn($taxTotal) => $taxTotal->only([
                 'tax_amount',
                 'taxable_amount',
                 'tax_category_id',

@@ -123,7 +123,7 @@ class TeamService
             requiresPasswordSetup: $requiresPasswordSetup,
         );
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $inviter,
             'team.member.added',
             $org,
@@ -165,7 +165,7 @@ class TeamService
                 newRole: $role,
             );
 
-            $this->activityLog->log(
+            $this->activityLog->logQueued(
                 $actor,
                 'team.member.role_changed',
                 $org,
@@ -202,7 +202,7 @@ class TeamService
             removedRole: $targetRole,
         );
 
-        $this->activityLog->log(
+        $this->activityLog->logQueued(
             $actor,
             'team.member.removed',
             $org,
