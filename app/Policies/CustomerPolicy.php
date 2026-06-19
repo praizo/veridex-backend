@@ -12,7 +12,7 @@ class CustomerPolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'accountant', 'viewer']);
+        return $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'viewer']);
     }
 
     public function view(User $user, Customer $customer): bool
@@ -39,6 +39,6 @@ class CustomerPolicy
 
     public function export(User $user): bool
     {
-        return $this->hasAnyRole($user, ['owner', 'admin', 'accountant']);
+        return $this->hasAnyRole($user, ['owner', 'admin']);
     }
 }

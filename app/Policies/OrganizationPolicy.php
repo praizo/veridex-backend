@@ -13,7 +13,7 @@ class OrganizationPolicy
     public function view(User $user, Organization $organization): bool
     {
         return $this->belongsToCurrentOrganization($user, $organization->id)
-            && $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'accountant', 'viewer'], $organization);
+            && $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'viewer'], $organization);
     }
 
     public function update(User $user, Organization $organization): bool
@@ -25,7 +25,7 @@ class OrganizationPolicy
     public function viewReports(User $user, Organization $organization): bool
     {
         return $this->belongsToCurrentOrganization($user, $organization->id)
-            && $this->hasAnyRole($user, ['owner', 'admin', 'accountant'], $organization);
+            && $this->hasAnyRole($user, ['owner', 'admin'], $organization);
     }
 
     public function viewActivityLogs(User $user, Organization $organization): bool

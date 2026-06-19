@@ -13,7 +13,7 @@ class InvoicePolicy
 
     public function viewAny(User $user): bool
     {
-        return $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'accountant', 'viewer']);
+        return $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'viewer']);
     }
 
     public function view(User $user, Invoice $invoice): bool
@@ -45,7 +45,7 @@ class InvoicePolicy
     public function manageLifecycle(User $user, Invoice $invoice): bool
     {
         return $this->belongsToCurrentOrganization($user, $invoice->organization_id)
-            && $this->hasAnyRole($user, ['owner', 'admin', 'editor', 'accountant']);
+            && $this->hasAnyRole($user, ['owner', 'admin', 'editor']);
     }
 
     public function updatePayment(User $user, Invoice $invoice): bool
@@ -55,6 +55,6 @@ class InvoicePolicy
 
     public function export(User $user): bool
     {
-        return $this->hasAnyRole($user, ['owner', 'admin', 'accountant']);
+        return $this->hasAnyRole($user, ['owner', 'admin']);
     }
 }

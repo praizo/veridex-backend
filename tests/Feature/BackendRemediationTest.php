@@ -112,33 +112,30 @@ class BackendRemediationTest extends TestCase
         ]);
 
         $viewer = $this->member($organization, 'viewer');
-        $accountant = $this->member($organization, 'accountant');
         $editor = $this->member($organization, 'editor');
+        $admin = $this->member($organization, 'admin');
 
         $this->assertTrue(Gate::forUser($viewer)->allows('view', $invoice));
         $this->assertFalse(Gate::forUser($viewer)->allows('manageLifecycle', $invoice));
         $this->assertFalse(Gate::forUser($viewer)->allows('update', $invoice));
 
-        $this->assertTrue(Gate::forUser($accountant)->allows('manageLifecycle', $invoice));
-        $this->assertFalse(Gate::forUser($accountant)->allows('update', $invoice));
-
         $this->assertTrue(Gate::forUser($editor)->allows('update', $invoice));
         $this->assertTrue(Gate::forUser($editor)->allows('manageLifecycle', $invoice));
+
+        $this->assertTrue(Gate::forUser($admin)->allows('export', Invoice::class));
     }
 
     public function test_organization_report_activity_policy_role_matrix(): void
     {
         $organization = Organization::factory()->create();
         $viewer = $this->member($organization, 'viewer');
-        $accountant = $this->member($organization, 'accountant');
         $admin = $this->member($organization, 'admin');
 
         $this->assertFalse(Gate::forUser($viewer)->allows('viewReports', $organization));
         $this->assertFalse(Gate::forUser($viewer)->allows('viewActivityLogs', $organization));
 
-        $this->assertTrue(Gate::forUser($accountant)->allows('viewReports', $organization));
-        $this->assertTrue(Gate::forUser($accountant)->allows('viewActivityLogs', $organization));
-
+        $this->assertTrue(Gate::forUser($admin)->allows('viewReports', $organization));
+        $this->assertTrue(Gate::forUser($admin)->allows('viewActivityLogs', $organization));
         $this->assertTrue(Gate::forUser($admin)->allows('update', $organization));
     }
 
